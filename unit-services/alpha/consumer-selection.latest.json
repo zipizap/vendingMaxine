@@ -1,0 +1,13 @@
+{
+    "unit-services": [
+    {
+        "name": "alpha",
+        "sshkeys": [],
+        "mongo-dbs": [
+        {
+            "name": "red"
+        }
+        ]
+    }
+    ]
+}
