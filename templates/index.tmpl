@@ -1,82 +1,63 @@
-
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title> Proto Vending Machine</title>
-    <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/css/jsoneditor.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.js"></script>
-    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.0/dist/css/bootstrap.min.css"> -->
-    <script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.0/dist/js/bootstrap.min.js"></script>
-    
+    <title>Proto Vending Machine</title>
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+   <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
+    <script>
+    // Set the default CSS theme and icon library globally
+    JSONEditor.defaults.theme = 'spectre';
+    JSONEditor.defaults.iconlib = 'spectre';
+    </script>
+    <style>
+      .container {
+        max-width:960px;
+        margin: 0 auto
+      }
+    </style>
   </head>
   <body>
-    <h1>Proto Vending Machine</h1>
-
-    <div id='editor_holder'></div>
-    <button id='submit'>Save & Apply</button>
-
+    <div class='container'>
+      <div class='columns'>
+        <h1 class='col-md-12'>Proto Vending Machine</h1>
+      </div>
+      <div id='editor_holder'></div>
+      <button id='submit'>Save & Apply</button>
+      <span id='valid_indicator' class='label'></span>  
+    </div>
+    
     <script>
-      // Initialize the editor with a JSON schema
       var the_start_val = JSON.parse({{ .consumerSelectionPreviousJson }})
       var the_json_schema = JSON.parse({{ .productsSchemaJson }})
-      var the_options = {
-        "title": "JSON-Editor Example",
-        "schema": the_json_schema,
-        "startval": the_start_val,
-        "config": {
-            "theme": "bootstrap3",
-            "iconlib": "bootstrap3",
-            "object_layout": "normal",
-            "template": "default",
-            "show_errors": "interaction",
-            "required_by_default": 1,
-            "no_additional_properties": 1,
-            "display_required_only": 0,
-            "remove_empty_properties": 0,
-            "keep_oneof_values": 1,
-            "ajax": 1,
-            "ajaxCredentials": 0,
-            "show_opt_in": 0,
-            "disable_edit_json": 1,
-            "disable_collapse": 0,
-            "disable_properties": 1,
-            "disable_array_add": 0,
-            "disable_array_reorder": 1,
-            "disable_array_delete": 0,
-            "enable_array_copy": 0,
-            "array_controls_top": 1,
-            "disable_array_delete_all_rows": 1,
-            "disable_array_delete_last_row": 1,
-            "prompt_before_delete": 1,
-            "lib_aceeditor": 0,
-            "lib_autocomplete": 0,
-            "lib_sceditor": 0,
-            "lib_simplemde": 0,
-            "lib_select2": 0,
-            "lib_selectize": 0,
-            "lib_choices": 0,
-            "lib_flatpickr": 0,
-            "lib_signaturepad": 0,
-            "lib_mathjs": 0,
-            "lib_cleavejs": 0,
-            "lib_jodit": 0,
-            "lib_jquery": 0,
-            "lib_dompurify": 0
-        },
-        "code": "// The following lines are mandatory and readonly. You can add custom code above and below.\nif (jseditor instanceof window.JSONEditor) jseditor.destroy();\njseditor = new window.JSONEditor(document.querySelector(\"#json-editor-form\"), jedata);\n//JSONEditor.defaults.editors.object.options.disable_edit_json = true;\n//JSONEditor.defaults.editors.object.options.disable_properties = true;\n//JSONEditor.defaults.editors.object.options.disable_array_delete_all_rows = true;\n//JSONEditor.defaults.editors.object.options.array_controls_top = true;",
-        "style": "",
-        "desc": "Add optional description here. (HTML format)"
-        }
-      var editor = new JSONEditor(document.getElementById('editor_holder'),the_options);
+
+      // Initialize the editor
+      var editor = new JSONEditor(document.getElementById('editor_holder'),{
+        // Enable fetching schemas via ajax
+        ajax: true,
+        
+        // The schema for the editor
+        schema: the_json_schema,
+        
+        // Seed the form with a starting value
+        startval: the_start_val,
+        disable_edit_json: true,
+        disable_properties: true,
+        disable_array_reorder: true,
+        array_controls_top: true,
+        disable_array_delete_all_rows: true,
+        disable_array_delete_last_row: true,
+        prompt_before_delete: true
+      });
 
       // Hook up the submit button to log to the console
       document.getElementById('submit').addEventListener('click',function() {
         // Get consumerSelectionNewJson from the value of the editor
         var consumerSelectionNewJson = editor.getValue()
         console.log(consumerSelectionNewJson);
+        
         
         // 
         fetch("/userv", {
@@ -86,6 +67,26 @@
         }).then(res => {
           console.log("POST complete! response:", res);
         });
+      });
+
+      // Hook up the validation indicator to update its 
+      // status whenever the editor changes
+      editor.on('change',function() {
+        // Get an array of errors from the validator
+        var errors = editor.validate();
+        
+        var indicator = document.getElementById('valid_indicator');
+        
+        // Not valid
+        if(errors.length) {
+          indicator.className = 'label alert';
+          indicator.textContent = 'not valid syntax';
+        }
+        // Valid
+        else {
+          indicator.className = 'label success';
+          indicator.textContent = 'valid syntax';
+        }
       });
     </script>
   </body>

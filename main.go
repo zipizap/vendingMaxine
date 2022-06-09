@@ -103,8 +103,6 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-
-		// read json
 		var consumerSelectionNewJson interface{}
 		err = json.Unmarshal([]byte(consumerSelectionNewJson_bytes), &consumerSelectionNewJson)
 		if err != nil {
