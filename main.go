@@ -50,7 +50,7 @@ func main() {
 
 	// Process the templates at the start so that they don't have to be loaded
 	// from the disk again. This makes serving HTML pages very fast.
-	router.LoadHTMLGlob("templates/*")
+	router.LoadHTMLGlob("vd-internal/templates/*")
 
 	// Define the route for the index page and display the index.html template
 	// To start with, we'll use an inline route handler. Later on, we'll create
@@ -67,7 +67,7 @@ func main() {
 		}
 
 		// Read consumerSelectionPreviousJson_bytes from file
-		consumerSelectionPreviousJson_filepath := "unit-services/" + userv_name + "/consumer-selection.latest.json"
+		consumerSelectionPreviousJson_filepath := "vd-internal/unit-services/" + userv_name + "/consumer-selection.latest.json"
 		consumerSelectionPreviousJson_bytes, err := os.ReadFile(consumerSelectionPreviousJson_filepath)
 		if err != nil {
 			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
@@ -109,7 +109,7 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-
+		// ATP: consumerSelectionNewJson is ready to be read, for example with jmespath :)
 		unitService_name, err := jmespath.Search(`"unit-services"[0].name`, consumerSelectionNewJson)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
