@@ -1,0 +1,24 @@
+Kind: UnitServiceStatusFlow
+Name: "alpha"
+
+Status:
+  Overall:
+    Name: "alpha"
+    StartTime:
+    LatestUpdateTime:
+    LatestUpdateStatus:  Completed    
+    LatestUpdateStatusInfo: ""
+    LatestUpdateUml: "" 
+    LatestUpdateData: {}
+
+  ProcessingEngines: 
+  - Name: WebConsumerSelection
+    StartTime: 2022-06-14T00:33:01.000+02:00
+    LatestUpdateTime: 2022-06-14T00:33:01.000+02:00
+    LatestUpdateStatus:  Completed
+    LatestUpdateStatusInfo: ""
+    LatestUpdateUml: ""
+    LatestUpdateData: 
+      "consumer-selection.previous.json": H4sIAAAAAAAAA6vmUgACpdK8zBLd4tSisszk1GIlK4VosHA1mAQryEvMTQWKKyXmFGQkKukgJIqLM7JTK8F6YpGEc/Pz0vN1U5IQhqEaiGJoUWqKElymFs5CNq+qSslKKSoKogyiJJarFgA7EgRyvgAAAA==
+      "consumer-selection.next.json": H4sIAAAAAAAAA6vmUgACpdK8zBLd4tSisszk1GIlK4VosHA1mAQryEvMTQWKKyXmFGQkKukgJIqLM7JTK8F6YpGEc/Pz0vN1U5IQhqEaiGJoUWqKElymFs5CNq+qSslKKSoKogyiJJarFgA7EgRyvgAAAA==
+
