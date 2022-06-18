@@ -110,7 +110,7 @@ func main() {
 			return
 		}
 		// ATP: consumerSelectionNewJson is ready to be read, for example with jmespath :)
-		unitService_name, err := jmespath.Search(`"unit-services"[0].name`, consumerSelectionNewJson)
+		unitService_name, err := jmespath.Search(`" unit-services"[0].name`, consumerSelectionNewJson)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
