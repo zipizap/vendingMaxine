@@ -1,0 +1,33 @@
+Kind: UnitServiceStatusFlow
+Name: alpha
+Status:
+    Overall:
+        Name: alpha
+        StartTime: 2022-06-18T11:25:03.222676882+02:00
+        LatestUpdateTime: 2022-06-18T13:23:41.939900033+02:00
+        LatestUpdateStatus: Completed
+        LatestUpdateStatusInfo: Doing TestBlock0
+        LatestUpdateUml: ""
+        LatestUpdateData: {}
+    ProcessingEngines:
+        - Name: TestBlock0
+          StartTime: 2022-06-18T13:04:24.898374419+02:00
+          LatestUpdateTime: 2022-06-18T13:04:24.898374419+02:00
+          LatestUpdateStatus: Completed
+          LatestUpdateStatusInfo: I'm completed
+          LatestUpdateUml: ""
+          LatestUpdateData: {}
+        - Name: TestBlock0
+          StartTime: 2022-06-18T13:05:17.375074385+02:00
+          LatestUpdateTime: 2022-06-18T13:05:17.375074385+02:00
+          LatestUpdateStatus: Completed
+          LatestUpdateStatusInfo: I'm completed
+          LatestUpdateUml: ""
+          LatestUpdateData: {}
+        - Name: TestBlock0
+          StartTime: 2022-06-18T13:23:41.939900033+02:00
+          LatestUpdateTime: 2022-06-18T13:23:41.939900033+02:00
+          LatestUpdateStatus: Completed
+          LatestUpdateStatusInfo: I'm completed
+          LatestUpdateUml: ""
+          LatestUpdateData: {}

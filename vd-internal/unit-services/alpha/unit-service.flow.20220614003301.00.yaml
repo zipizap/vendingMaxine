@@ -4,8 +4,8 @@ Name: "alpha"
 Status:
   Overall:
     Name: "alpha"
-    StartTime:
-    LatestUpdateTime:
+    StartTime: 2022-06-14T00:33:01.000+02:00
+    LatestUpdateTime: 2022-06-14T00:33:01.000+02:00
     LatestUpdateStatus:  Completed    
     LatestUpdateStatusInfo: ""
     LatestUpdateUml: "" 

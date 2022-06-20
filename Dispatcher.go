@@ -68,7 +68,7 @@ func ioUsfDirpath(uname string) (usf_dirpath string) {
 // "" or filename-relative-path
 func ioLatestUsfFile(uname string) (usf_filepath string, err error) {
 	usf_dirpath := ioUsfDirpath(uname)
-	all_usf_filepaths, err := ioLatestFiles(usf_dirpath, "unit-service.flow.*.yaml")
+	all_usf_filepaths, err := ioLatestFiles(usf_dirpath, "^unit-service.flow.*.yaml$")
 	if err != nil {
 		return "", err
 	}
@@ -79,15 +79,80 @@ func ioLatestUsfFile(uname string) (usf_filepath string, err error) {
 	return latest_usf_filepath, nil
 }
 
+// Syncs usf into corresponding file (creates or overwrites file)
+// Expects usf .Name and .Status.Overall.StartTime already defined, will be used to infer usf_filepath
+func ioSyncUsf2File(usf *UserviceFlow) (err error) {
+	// get usf_filepath
+	usf_filepath := filepath.Join(
+		ioUsfDirpath(usf.Name),
+		"unit-service.flow."+usf.Status.Overall.StartTime.Format("20060102150405.00")+".yaml")
+	if err != nil {
+		return err
+	}
+	// save usf into usf_filepath
+	usf_bytes, err := yaml.Marshal(usf)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(usf_filepath, usf_bytes, 0600)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Reads lastSblock from usf.Status.ProcessingEngines, and updates usf.Status.Overall
+func usfAutoUpdStatusOverall(usf *UserviceFlow) (cannotUpdate bool, err error) {
+	// Check: usf cannot be updated when .Status.Overall.LatestUpdateStatus = "Completed|Error"
+	matchOk, err := regexp.MatchString("^Completed|Error", usf.Status.Overall.LatestUpdateStatus)
+	if err != nil {
+		return err
+	}
+	if !matchOk {
+		// There is no match => usf is not Completed|Error => cannot update it
+		return fmt.Errorf()
+	}
+
+	lastSblock := usf.Status.ProcessingEngines[len(usf.Status.ProcessingEngines)-1]
+
+	// **********************************************************************************************************************
+	//   lastSblock                        ->          .Status.Overall
+	//     .LatestUpdateStatus                           .LatestUpdateStatus                  .LatestUpdateStatusInfo
+	//        Ongoing_and_locked           ->              Ongoing_and_locked (no change)        "Running xxxxx"
+	// 	      Completed                    ->              Ongoing_and_locked (no change)        "Finished running xxxxx"
+	// 	      Error                        ->              Error                                 "Error running xxxxxx"
+	//
+	// **********************************************************************************************************************
+
+	// Update Status.Overall
+	usf.Status.Overall.LatestUpdateTime = lastSblock.LatestUpdateTime
+
+	switch newSblock_LatestUpdateStatus := lastSblock.LatestUpdateStatus; newSblock_LatestUpdateStatus {
+	case "Ongoing_and_locked":
+		usf.Status.Overall.LatestUpdateStatus = "Ongoing_and_locked"
+		usf.Status.Overall.LatestUpdateStatusInfo = "Running " + lastSblock.Name
+	case "Completed":
+		usf.Status.Overall.LatestUpdateStatus = "Ongoing_and_locked"
+		usf.Status.Overall.LatestUpdateStatusInfo = "Finished running " + lastSblock.Name
+	case "Error":
+		usf.Status.Overall.LatestUpdateStatus = "Error"
+		usf.Status.Overall.LatestUpdateStatusInfo = "Error running " + lastSblock.Name
+	default:
+		return fmt.Errorf("lastSblock.LatestUpdateStatus '%s' unknown (expected Completed|Error|Ongoing_and_locked)", lastSblock.LatestUpdateStatus)
+	}
+	return nil
+}
+
 type Dispatcher struct{}
 
+// Reads corresponding unit-service.flow.xxx.yaml file (must exist!) and returns usf pointer
 func (v *Dispatcher) GetUserviceFlow(uname string) (usf *UserviceFlow, err error) {
 	usf_latest_filepath, err := ioLatestUsfFile(uname)
 	if err != nil {
 		return nil, err
 	}
 	if usf_latest_filepath == "" {
-		return nil, fmt.Errorf("Could not find any file for UserviceFlow %s\n", uname)
+		return nil, fmt.Errorf("could not find any file for UserviceFlow %s", uname)
 	}
 	usf_bytes, err := os.ReadFile(usf_latest_filepath)
 	if err != nil {
@@ -101,7 +166,10 @@ func (v *Dispatcher) GetUserviceFlow(uname string) (usf *UserviceFlow, err error
 	return usf, nil
 }
 
-func (v *Dispatcher) NewUserviceFlow(uname string) (usf *UserviceFlow, err error) {
+// Validates if last-userviceflow-of-uname is Error|Completed (or does not exist) and if so then
+// creates a new userviceflow file (unit-service.flow.xxxx.yaml) setting its
+// .Kind|Name, .Status.Overall.Name|StartTime|LatestUpdateTime|LatestUpdateStatus (Ongoing_and_locked)
+func (v *Dispatcher) NewUserviceFlow(uname string) (cantBeDone bool, usf *UserviceFlow, err error) {
 	var last_usf *UserviceFlow
 	// validate that last UserviceFlow (from file!) (if exists), has LatestUpdateStatus "Error|Completed"
 	last_usf_filepath, err := ioLatestUsfFile(uname)
@@ -120,15 +188,12 @@ func (v *Dispatcher) NewUserviceFlow(uname string) (usf *UserviceFlow, err error
 		}
 		if !matchFound {
 			// a last NewUserviceFlow was found but its neither Complete|Error, so we cannot create a new NewUserviceFlow
-			return nil, fmt.Errorf("Cannot create a new UserviceFlow for uname '%s', because there is already an existing UserviceFlow '%s' with Status.Overall.LatestUpdateStatus '%s' (!= Completed|Error)\n", uname, last_usf_filepath, last_usf.Status.Overall.LatestUpdateStatus)
+			return nil, fmt.Errorf("cannot create a new UserviceFlow for uname '%s', because there is already an existing UserviceFlow '%s' with Status.Overall.LatestUpdateStatus '%s' (!= Completed|Error)", uname, last_usf_filepath, last_usf.Status.Overall.LatestUpdateStatus)
 		}
 	}
 
 	// Create new usf struct, with uname
 	time_now := time.Now()
-	usf_filepath := filepath.Join(
-		ioUsfDirpath(uname),
-		"unit-service.flow."+time_now.Format("20060102150405.00")+".yaml")
 	usf = &UserviceFlow{
 		Kind: "UnitServiceStatusFlow",
 		Name: uname,
@@ -141,11 +206,93 @@ func (v *Dispatcher) NewUserviceFlow(uname string) (usf *UserviceFlow, err error
 	}
 
 	// Sync usf struct to file
-	usf_bytes, err := yaml.Marshal(usf)
+	err = ioSyncUsf2File(usf)
 	if err != nil {
 		return nil, err
 	}
-	err = os.WriteFile(usf_filepath, usf_bytes, 0600)
+	return usf, nil
+}
+
+func (v *Dispatcher) UserviceFlow_Append_Sblock(uname string, sblock *StatusBlock) (usf *UserviceFlow, err error) {
+	usf, err = v.GetUserviceFlow(uname)
+	if err != nil {
+		return nil, err
+	}
+	// Validate sblock
+	// --nothing for now--
+
+	// Append sblock into Status.ProcessingEngines[]
+	usf.Status.ProcessingEngines = append(usf.Status.ProcessingEngines, *sblock)
+
+	// Update Status.Overall
+	err = usfAutoUpdStatusOverall(usf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sync usf to file - this should only be done when everything else is calculated and correct (last step)
+	err = ioSyncUsf2File(usf)
+	if err != nil {
+		return nil, err
+	}
+	return usf, nil
+}
+
+func (v *Dispatcher) UserviceFlow_Update_LastSblock(uname string, sblock *StatusBlock) (usf *UserviceFlow, err error) {
+	usf, err = v.GetUserviceFlow(uname)
+	if err != nil {
+		return nil, err
+	}
+	// Validate sblock
+	// --nothing for now--
+
+	// Update Last sblock of Status.ProcessingEngines[]
+	slen := len(usf.Status.ProcessingEngines)
+	if slen == 0 {
+		// Protection when []ProcessingEngines is empty => cannot update lastblock
+		return nil, fmt.Errorf("usf of uname '%s' has .Status.ProcessingEngines as an empty slice, so its not possible to update its lastSblock", uname)
+	}
+	usf.Status.ProcessingEngines[slen-1] = *sblock
+
+	// Update Status.Overall
+	err = usfAutoUpdStatusOverall(usf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sync usf to file - this should only be done when everything else is calculated and correct (last step)
+	err = ioSyncUsf2File(usf)
+	if err != nil {
+		return nil, err
+	}
+	return usf, nil
+}
+
+// Reads last_sblock from usf, and propagates its state into .State.Overall:
+//       last_sblock          ->       .State.Overall
+//       LatestUpdateStatus             copied
+func (v *Dispatcher) UserviceFlow_NoMoreSblocks(uname string) (err error) {
+	usf, err = v.GetUserviceFlow(uname)
+	if err != nil {
+		return nil, err
+	}
+
+	// read last_sblock of Status.ProcessingEngines[]
+	slen := len(usf.Status.ProcessingEngines)
+	if slen == 0 {
+		// Protection when []ProcessingEngines is empty => cannot read lastblock
+		return fmt.Errorf("usf of uname '%s' has .Status.ProcessingEngines as an empty slice, so its not possible to read its lastSblock (this is unexpected)", uname)
+	}
+	last_sblock := usf.Status.ProcessingEngines[slen-1]
+
+	// Update Status.Overall
+	err = usfAutoUpdStatusOverall(usf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sync usf to file
+	err = ioSyncUsf2File(usf)
 	if err != nil {
 		return nil, err
 	}
@@ -155,14 +302,33 @@ func (v *Dispatcher) NewUserviceFlow(uname string) (usf *UserviceFlow, err error
 func main() {
 	d := Dispatcher{}
 	uname := "alpha"
-	usf, err := d.GetUserviceFlow(uname)
+	usf1, err := d.GetUserviceFlow(uname)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%v, %v \n", usf.Status.Overall.LatestUpdateTime, usf.Status.Overall.LatestUpdateStatus)
-	usf2, err := d.NewUserviceFlow(uname)
+	fmt.Printf("%v, %v \n", usf1.Status.Overall.LatestUpdateTime, usf1.Status.Overall.LatestUpdateStatus)
+	// {
+	// 	usf2, err := ds.NewUserviceFlow(uname)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	fmt.Printf("%v, %v \n", usf2.Status.Overall.LatestUpdateTime, usf2.Status.Overall.LatestUpdateStatus)
+	// }
+
+	t := time.Now()
+	d.UserviceFlow_Append_Sblock(
+		uname,
+		&StatusBlock{
+			Name:                   "TestBlock0",
+			StartTime:              t,
+			LatestUpdateTime:       t,
+			LatestUpdateStatus:     "Completed",
+			LatestUpdateStatusInfo: "I'm completed",
+		},
+	)
+	usf1, err = d.GetUserviceFlow(uname)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%v, %v \n", usf2.Status.Overall.LatestUpdateTime, usf2.Status.Overall.LatestUpdateStatus)
+	fmt.Printf("%v, %v \n", usf1.Status.Overall.LatestUpdateTime, usf1.Status.Overall.LatestUpdateStatus)
 }
