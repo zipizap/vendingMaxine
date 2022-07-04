@@ -1,5 +1,5 @@
-Kind: UnitServiceStatusFlow
-Name: "alpha"
+Kind: RequestStatusFlow
+Collection: "alpha"
 
 Status:
   Overall:

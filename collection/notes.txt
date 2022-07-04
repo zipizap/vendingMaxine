@@ -1,0 +1,54 @@
++ collection.
++ .NewCollection(cname string) (col *Collection, err error)
++ .GetCollection(cname string) (col *Collection, err error)
++ .DeleteCollection(cname string) (col *Collection, err error)
+
++ collection.Collection{
++   Name: "alpha",
++ }
++ .LastRsf() (rsf *RequestStatusFlow, err error)
++ .NewRsf(web_sblock StatusBlock)(cantDo bool, rsf *RequestStatusFlow, err error)
+   - cr & syncSave
+   - go runProcessingEngines()
++ .dirpath()(colDirpath string, err error)
++ .lastFiles(optional_filename_regexp ...string) ( lastFilesRecentFirst []string, err error)
+
+
++ collection.RequestStatusFlow{
++ }
++ .checkNewRsfCanBeCreated()(yes bool, err error)
++ .new_from_webConsumerSelection(web_sblock StatusBlock) (cantDo bool, err error)
++ .i1_runProcessingEngines() -> async
++ .i1_syncLoadFromLastFile()(err error)
++ .i1_getCollection()(col *Collection, err error)
++ .i1_append_Sblock((new_sblock_is_finalSblock bool, new_sblock StatusBlock)(cantDo bool, err error)
++ .i1_update_LastSblock(new_sblock_is_finalSblock bool, new_sblock StatusBlock)(cantDo bool, err error)
++ .i1_update_Overall_LatestUpdateData(new_LatestUpdateData map[string]interface{})(cantDo bool, err error)
++ .i1_getProcEngineBinariesList() (procEngineBinariesFilepaths []string, err error)
++ .i1_encode_string_to_gzB64(str string) (gzB64 string, err error)
++ .i1_decode_gzB64_to_string(gzB64 string) (str string, err error)
++ .i2_checkRsfCanBeUpdated()(yes bool, err error)
++ .i2_syncSaveToLastFile()(err error)
++ .i2_append_or_update_Sblock(append_or_update string, new_sblock_is_finalSblock bool, new_sblock StatusBlock)
++ .i2_autoupdate_OverallStatus(lastSblock_is_finalSblock bool)(err error)
+
+>> runProcessingEngines: refactor into util-funcs, then deal with errors correctly (dont return, but instead update sblock with "Error")
+>> "initiation": how to simple/elegant implement it 
+
+
+- RequestStatusFlow.internalfunc() should be the only one reading/writting into *UserviceFlow and must keep it
+  in-sync with file-system unit-service.flow.xxxxx.yaml
+
+-------------------
+GetUserviceFlow(uname string) (usf *UserviceFlow, err error)
+NewUserviceFlow(uname string) (cantBeDone bool, usf *UserviceFlow, err error)
+
+UserviceFlow_Append_Sblock(uname string, sblock *StatusBlock) (cantBeDone bool, err error)
+UserviceFlow_Update_LastSblock(uname string, sblock *StatusBlock) (cantBeDone bool, err error) 
+UserviceFlow_Set_cantBeChangedAnymore(uname string) (cantBeDone bool, err error) 
+UserviceFlow_Check_cantBeChangedAnymore(uname string) (cantBeDone bool, err error) 
+
+
+- Dispatcher should be the only one reading/writting into *UserviceFlow and must keep it
+  in-sync with file-system unit-service.flow.xxxxx.yaml
+   

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Paulo Aleixo Campos
+__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+function shw_info { echo -e '\033[1;34m'"$1"'\033[0m'; }
+function error { echo "ERROR in ${1}"; exit 99; }
+trap 'error $LINENO' ERR
+#exec > >(tee -i /tmp/$(date +%Y%m%d%H%M%S.%N)__$(basename $0).log ) 2>&1
+PS4='████████████████████████${BASH_SOURCE}@${FUNCNAME[0]:-}[${LINENO}]>  '
+set -o errexit
+set -o pipefail
+set -o nounset
+#set -o xtrace
+
+# check selection_previous_jsonfile is readable
+# check selection_next_jsonfile is readable
+# check selection_next_jsonfile is writeable
+check_selectionfiles_permitions() {
+    if [ ! -r "${selection_previous_jsonfile}" ]
+    then
+        echo "ERROR: cannot read selection_previous_jsonfile '$selection_previous_jsonfile'"
+        exit 1
+    elif [ ! -r "${selection_next_jsonfile}" ]
+    then
+        echo "ERROR: cannot read selection_next_jsonfile '$selection_next_jsonfile'"
+        exit 1
+    elif [ ! -w "${selection_next_jsonfile}" ]
+    then
+        echo "ERROR: cannot write selection_next_jsonfile '$selection_next_jsonfile'"
+        exit 2
+    fi
+}
+
+do_initiation_if_necessary() {
+   # TODO
+   :
+}
+
+do_execution() {
+  # TODO
+  echo "Completed"
+  exit 0
+}
+
+
+main() {
+    # read arguments
+    selection_previous_jsonfile="${1?missing selection.previous.json}"; shift 1
+    selection_next_jsonfile="${1?missing selection.next.json}"; shift 1
+
+    check_selectionfiles_permitions
+
+    # check if initiation is necessary, do it and exit
+    # if not necessary, just skip ahead
+    do_initiation_if_necessary
+
+    do_execution
+}
+main "$@"
