@@ -12,10 +12,18 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"sync"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+// waitgroup to keep track of async runners of rsf.i1_runProcessingEngines()
+//
+// In main.go add:
+//   collection.RunnersOfProcEngs_wg.Wait()
+// and it will block-wait untill all ProcEngs are finished executing
+var RunnersOfProcEngs_wg sync.WaitGroup
 
 type StatusBlock struct {
 	Name                   string                 `yaml:"Name"`
@@ -170,15 +178,20 @@ func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlo
 	file.Close()
 	// at this point, the lastfile is the empty-file we just created. So with i2_syncSaveToLastFile() we will actually
 	// write the rsf struct into the file :)
-	rsf.i2_syncSaveToLastFile()
+	err = rsf.i2_syncSaveToLastFile()
+	if err != nil {
+		return false, err
+	}
 
 	//    - call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
+	RunnersOfProcEngs_wg.Add(1)
 	go rsf.i1_runProcessingEngines()
 	return false, nil
 }
 
 // This function should always be called into a go-routine: "go runProcessingEngines()"
 func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
+	defer RunnersOfProcEngs_wg.Done()
 
 	// for _, a_ProcEngine_Binary := range procenginebinaries {
 	// 	rsf.i1_append_Sblock(...)
@@ -217,17 +230,18 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//	  - b.4) selectionNextJson_bytes 		is re-read from i_procEng_selectionNextJson_filepath (file might have been modified by engine)
 		//
 		// c) In the end:
-		//	  - c.1) Update i_sblock:
+		//	  - c.1) Update Overall:
+		//			LatestUpdateData:
+		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
+		//
+		//	  - c.2) Update i_sblock:
 		//			LatestUpdateStatus:    Error ($? > 0) | Completed ($?==0)
 		//			LatestUpdateStatusInfo: (stdout+stderr)
 		//			LatestUpdateData:
 		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
 		//
-		//	  - c.2) Update Overall:
-		//			LatestUpdateData:
-		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
 		//
-		//
+		//---------------------------------------------------------------------------------------------------------
 
 		// a) In the start:
 		//   - a.1) Append i_sblock "Ongoing_and_locked" before executing the engine
@@ -245,6 +259,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 			LatestUpdateTime:       t_now,
 			LatestUpdateStatus:     "Ongoing_and_locked",
 			LatestUpdateStatusInfo: "Running",
+			LatestUpdateData:       map[string]interface{}{},
 		}
 		i_sblock.LatestUpdateData["consumer-selection.previous.json"] = rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"]
 		i_sblock_is_the_finalSblock = (i == procEng_binaries_indexLastElement)
@@ -323,7 +338,27 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		}
 
 		// c) In the end:
-		//	  - c.1) Update i_sblock:
+		//	  - c.1) Update Overall:
+		//			LatestUpdateData:
+		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
+		new_LatestUpdateData := make(map[string]interface{})
+		selectionNextJson_gzB64, err := rsf.i1_encode_bytes_to_gzB64(selectionNextJson_bytes)
+		if err != nil {
+			// todo: log error
+			return
+		}
+		new_LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
+		cantDo, err = rsf.i1_update_Overall_LatestUpdateData(new_LatestUpdateData)
+		if err != nil {
+			// todo: log error
+			return
+		}
+		if cantDo {
+			// todo: log error
+			return
+		}
+
+		//	  - c.2) Update i_sblock:
 		//			LatestUpdateStatus:    Error ($? > 0) | Completed ($?==0)
 		//			LatestUpdateStatusInfo: (stdout+stderr)
 		//			LatestUpdateData:
@@ -337,11 +372,6 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		}
 
 		i_sblock.LatestUpdateStatusInfo = string(stdouterr_bytes)
-		selectionNextJson_gzB64, err := rsf.i1_encode_bytes_to_gzB64(selectionNextJson_bytes)
-		if err != nil {
-			// todo: log error
-			return
-		}
 		i_sblock.LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
 
 		cantDo, err = rsf.i1_update_LastSblock(i_sblock_is_the_finalSblock, i_sblock)
@@ -354,21 +384,6 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 			return
 		}
 		// ATP: i_sblock was updated successfully
-
-		//	  - c.2) Update Overall:
-		//			LatestUpdateData:
-		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
-		new_LatestUpdateData := make(map[string]interface{})
-		new_LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
-		cantDo, err = rsf.i1_update_Overall_LatestUpdateData(new_LatestUpdateData)
-		if err != nil {
-			// todo: log error
-			return
-		}
-		if cantDo {
-			// todo: log error
-			return
-		}
 
 	} // end for
 } // end func

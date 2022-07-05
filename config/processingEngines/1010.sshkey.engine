@@ -32,12 +32,14 @@ check_selectionfiles_permitions() {
 
 do_initiation_if_necessary() {
    # TODO
+   # exit 0
    :
 }
 
 do_execution() {
   # TODO
-  echo "Completed"
+
+  echo "$(basename $0) is completed"
   exit 0
 }
 
@@ -54,5 +56,6 @@ main() {
     do_initiation_if_necessary
 
     do_execution
+
 }
 main "$@"
