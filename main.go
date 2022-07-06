@@ -15,10 +15,11 @@ func init() {
 	})
 	spew.Config.Indent = "  "
 	//    log.Fatal(err)
+	//    log.Error(err)
 	//    log.Info("info message")
 }
 
-func main() {
+func test_somethings() {
 	col, err := collection.GetCollection("alpha")
 	if err != nil {
 		log.Fatal(err)
@@ -70,4 +71,12 @@ func main() {
 	// show the rsf_new updated with the ProcEng results
 	collection.RunnersOfProcEngs_wg.Wait()
 	spew.Dump(rsf_new)
+}
+
+func main() {
+	// test_somethings()
+	// return
+
+	// launch gin webserver which loops-infinitely
+	ginWebserver()
 }

@@ -6,12 +6,12 @@
     <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
     <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
     <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
-   <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/jsoneditor.min.js"></script>
     <script>
-    // Set the default CSS theme and icon library globally
-    JSONEditor.defaults.theme = 'spectre';
-    JSONEditor.defaults.iconlib = 'spectre';
-    </script>
+      // Set the default CSS theme and icon library globally
+      JSONEditor.defaults.theme = 'spectre';
+      JSONEditor.defaults.iconlib = 'spectre';
+      </script>
     <style>
       .container {
         max-width:960px;
@@ -59,8 +59,10 @@
         console.log(consumerSelectionNewJson);
         
         
-        // 
-        fetch("/userv", {
+        // post_path will be the same as the current get url-path
+        // Ex: current url-path "collection/alpha" => post_path "collection/alpha" 
+        var post_path = window.location.pathname
+        fetch(post_path, {
           method: "POST",
           headers: {'Content-Type': 'application/json'}, 
           body: JSON.stringify(consumerSelectionNewJson)

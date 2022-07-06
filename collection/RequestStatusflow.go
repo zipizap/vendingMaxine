@@ -279,12 +279,12 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//	  - b.0) selectionPreviousJson_bytes, selectionNextJson_bytes
 		// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
 		// 		  selectionNextJson_bytes 		is read from Overall.LatestUpdateData["consumer-selection.next.json"]
-		selectionPreviousJson_bytes, err := rsf.i1_decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
+		selectionPreviousJson_bytes, err := Decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
 		if err != nil {
 			log.Error("internal error:", err)
 			return
 		}
-		selectionNextJson_bytes, err := rsf.i1_decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string))
+		selectionNextJson_bytes, err := Decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string))
 		if err != nil {
 			log.Error("internal error:", err)
 			return
@@ -346,7 +346,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//			LatestUpdateData:
 		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
 		new_LatestUpdateData := make(map[string]interface{})
-		selectionNextJson_gzB64, err := rsf.i1_encode_bytes_to_gzB64(selectionNextJson_bytes)
+		selectionNextJson_gzB64, err := Encode_bytes_to_gzB64(selectionNextJson_bytes)
 		if err != nil {
 			log.Error("internal error:", err)
 			return
@@ -498,27 +498,6 @@ func (rsf *RequestStatusFlow) i1_update_Overall_LatestUpdateData(new_LatestUpdat
 		return true, err
 	}
 	return false, nil
-}
-
-func (rsf *RequestStatusFlow) i1_encode_bytes_to_gzB64(bytes []byte) (gzB64 string, err error) {
-	gz, err := gZipData(bytes)
-	if err != nil {
-		return "", err
-	}
-	gzB64 = base64.StdEncoding.EncodeToString(gz)
-	return gzB64, nil
-}
-
-func (rsf *RequestStatusFlow) i1_decode_gzB64_to_bytes(gzB64 string) (bytes []byte, err error) {
-	gz, err := base64.StdEncoding.DecodeString(gzB64)
-	if err != nil {
-		return nil, err
-	}
-	bytes, err = gUnzipData(gz)
-	if err != nil {
-		return nil, err
-	}
-	return bytes, nil
 }
 
 //  when rfs can be updated: yes == true
@@ -758,4 +737,25 @@ func gZipData(data []byte) (compressedData []byte, err error) {
 	compressedData = b.Bytes()
 
 	return
+}
+
+func Encode_bytes_to_gzB64(bytes []byte) (gzB64 string, err error) {
+	gz, err := gZipData(bytes)
+	if err != nil {
+		return "", err
+	}
+	gzB64 = base64.StdEncoding.EncodeToString(gz)
+	return gzB64, nil
+}
+
+func Decode_gzB64_to_bytes(gzB64 string) (bytes []byte, err error) {
+	gz, err := base64.StdEncoding.DecodeString(gzB64)
+	if err != nil {
+		return nil, err
+	}
+	bytes, err = gUnzipData(gz)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }

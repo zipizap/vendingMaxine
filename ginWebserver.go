@@ -2,15 +2,16 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
+	// "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"proto-VD/collection"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmespath/go-jmespath"
+	log "github.com/sirupsen/logrus"
 )
 
 var router *gin.Engine
@@ -41,7 +42,7 @@ func setup_gin_logger(router *gin.Engine) {
 	router.Use(gin.Recovery())
 }
 
-func main() {
+func ginWebserver() {
 
 	// Set the router as the default one provided by Gin
 	router = gin.Default()
@@ -52,32 +53,45 @@ func main() {
 	// from the disk again. This makes serving HTML pages very fast.
 	router.LoadHTMLGlob("vd-internal/templates/*")
 
-	// Define the route for the index page and display the index.html template
-	// To start with, we'll use an inline route handler. Later on, we'll create
-	// standalone functions that will be used as route handlers.
-	router.GET("/userv/:userv_name", func(c *gin.Context) {
+	router.GET("/collection/:collection_name", func(c *gin.Context) {
 
-		// read userv_name from "parameter in path"  (ref: https://gin-gonic.com/docs/examples/param-in-path/ )
+		// read theCollection_name from "parameter in path"  (ref: https://gin-gonic.com/docs/examples/param-in-path/ )
 		// ex: "alpha"
-		userv_name := c.Param("userv_name")
-		if userv_name == "" {
-			err := errors.New(fmt.Sprintf("unit-service '%s' not found!", userv_name))
+		theCollection_name := c.Param("collection_name")
+
+		// if theCollection does not exist, reply with error
+		theCollection, err := collection.GetCollection(theCollection_name)
+		if err != nil {
+			// collection_name not found
+			err := fmt.Errorf("collection '%s' not found", theCollection_name)
+			log.Error(err)
 			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
 			return
 		}
 
-		// Read consumerSelectionPreviousJson_bytes from file
-		consumerSelectionPreviousJson_filepath := "vd-internal/unit-services/" + userv_name + "/consumer-selection.latest.json"
-		consumerSelectionPreviousJson_bytes, err := os.ReadFile(consumerSelectionPreviousJson_filepath)
+		// Read consumerSelectionPreviousJson_string from theCollection.LastRsf
+		last_rsf, err := theCollection.LastRsf()
+		// NOTE: if lasT_rsf does not exist (ex: new collection) then err != nil
+		// and new collectino will never work
+		// todo: new collection will never work as it does not have a last_rsf for bootstraping
 		if err != nil {
+			log.Error(err)
+			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
+			return
+		}
+		consumerSelectionPreviousJson_gzB64 := last_rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string)
+		consumerSelectionPreviousJson_bytes, err := collection.Decode_gzB64_to_bytes(consumerSelectionPreviousJson_gzB64)
+		if err != nil {
+			log.Error(err)
 			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
 			return
 		}
 		consumerSelectionPreviousJson_string := string(consumerSelectionPreviousJson_bytes)
 
-		// Read productsSchemaJson_bytes from file
+		// Read productsSchemaJson_string from file
 		productsSchemaJson_bytes, err := os.ReadFile("config/products.schema.json")
 		if err != nil {
+			log.Error(err)
 			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
 		}
 		productsSchemaJson_string := string(productsSchemaJson_bytes)
@@ -86,8 +100,8 @@ func main() {
 		c.HTML(
 			// Set the HTTP status to 200 (OK)
 			http.StatusOK,
-			// Use the index.html template
-			"index.tmpl",
+			// Use the collection.html template
+			"collection.tmpl",
 			// Pass templating data
 			gin.H{
 				"productsSchemaJson":            productsSchemaJson_string,
@@ -97,31 +111,36 @@ func main() {
 
 	})
 
-	router.POST("/userv", func(c *gin.Context) {
+	router.POST("/collection/:collection_name", func(c *gin.Context) {
+		theCollection_name := c.Param("collection_name")
+
 		consumerSelectionNewJson_bytes, err := ioutil.ReadAll(c.Request.Body)
 		if err != nil {
+			log.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		var consumerSelectionNewJson interface{}
 		err = json.Unmarshal([]byte(consumerSelectionNewJson_bytes), &consumerSelectionNewJson)
 		if err != nil {
+			log.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		// ATP: consumerSelectionNewJson is ready to be read, for example with jmespath :)
-		unitService_name, err := jmespath.Search(`" unit-services"[0].name`, consumerSelectionNewJson)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		// collection_name, err := jmespath.Search(`" unit-services"[0].name`, consumerSelectionNewJson)
+		// if err != nil {
+		// 	log.Error(err)
+		// 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// 	return
+		// }
 
 		c.JSON(http.StatusOK, gin.H{
-			"status":       "posted",
-			"unit-service": unitService_name,
+			"status":     "posted",
+			"collection": theCollection_name,
 		})
 
-		fmt.Printf("Processing unit-service '%s'\n", unitService_name)
+		log.Info(fmt.Sprintf("Processing collection '%s'\n", theCollection_name))
 		// TODO
 	})
 	// Start serving the application

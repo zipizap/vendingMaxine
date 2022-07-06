@@ -23,19 +23,20 @@
 + .i1_update_LastSblock(new_sblock_is_finalSblock bool, new_sblock StatusBlock)(cantDo bool, err error)
 + .i1_update_Overall_LatestUpdateData(new_LatestUpdateData map[string]interface{})(cantDo bool, err error)
 + .i1_getProcEngineBinariesList() (procEngineBinariesFilepaths []string, err error)
-+ .i1_encode_string_to_gzB64(str string) (gzB64 string, err error)
-+ .i1_decode_gzB64_to_string(gzB64 string) (str string, err error)
 + .i2_checkRsfCanBeUpdated()(yes bool, err error)
 + .i2_syncSaveToLastFile()(err error)
 + .i2_append_or_update_Sblock(append_or_update string, new_sblock_is_finalSblock bool, new_sblock StatusBlock)
 + .i2_autoupdate_OverallStatus(lastSblock_is_finalSblock bool)(err error)
++ Encode_string_to_gzB64(str string) (gzB64 string, err error)
++ Decode_gzB64_to_string(gzB64 string) (str string, err error)
 
 TODO:
 >> "initiation": how to simple/elegant implement it 
+>> new-collection: create new collection, create 
 
 Improvements:
 >> runProcessingEngines: ? deal with internal errors correctly (dont return, but instead update sblock with "Error")?
-
+>> gracefull shutdown of this ever-running-server...
 
 - RequestStatusFlow.internalfunc() should be the only one reading/writting into *UserviceFlow and must keep it
   in-sync with file-system unit-service.flow.xxxxx.yaml
