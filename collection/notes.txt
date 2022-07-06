@@ -7,9 +7,7 @@
 +   Name: "alpha",
 + }
 + .LastRsf() (rsf *RequestStatusFlow, err error)
-+ .NewRsf(web_sblock StatusBlock)(cantDo bool, rsf *RequestStatusFlow, err error)
-   - cr & syncSave
-   - go runProcessingEngines()
++ .NewRsf_from_WebconsumerSelection(webdata map[string]interface{})(cantDo bool, rsf *RequestStatusFlow, err error)
 + .dirpath()(colDirpath string, err error)
 + .lastFiles(optional_filename_regexp ...string) ( lastFilesRecentFirst []string, err error)
 
@@ -32,8 +30,11 @@
 + .i2_append_or_update_Sblock(append_or_update string, new_sblock_is_finalSblock bool, new_sblock StatusBlock)
 + .i2_autoupdate_OverallStatus(lastSblock_is_finalSblock bool)(err error)
 
->> runProcessingEngines: refactor into util-funcs, then deal with errors correctly (dont return, but instead update sblock with "Error")
+TODO:
 >> "initiation": how to simple/elegant implement it 
+
+Improvements:
+>> runProcessingEngines: ? deal with internal errors correctly (dont return, but instead update sblock with "Error")?
 
 
 - RequestStatusFlow.internalfunc() should be the only one reading/writting into *UserviceFlow and must keep it

@@ -40,7 +40,7 @@ do_execution() {
   # TODO
 
   echo "$(basename $0) is completed"
-  exit 5
+  exit 0
 }
 
 

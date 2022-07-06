@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -201,7 +202,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 
 	procEng_binaries, err := rsf.i1_getProcEngineBinariesList()
 	if err != nil {
-		// todo log error
+		log.Error(err)
 		return
 	}
 
@@ -265,11 +266,11 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		i_sblock_is_the_finalSblock = (i == procEng_binaries_indexLastElement)
 		cantDo, err := rsf.i1_append_Sblock(i_sblock_is_the_finalSblock, i_sblock)
 		if err != nil {
-			// todo: log error
+			log.Error("internal error:", err)
 			return
 		}
 		if cantDo {
-			// todo: log error
+			log.Error("got unexpected 'cantDo' == true")
 			return
 		}
 		// ATP: i_sblock was appended successfully
@@ -280,12 +281,12 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		// 		  selectionNextJson_bytes 		is read from Overall.LatestUpdateData["consumer-selection.next.json"]
 		selectionPreviousJson_bytes, err := rsf.i1_decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
 		if err != nil {
-			// todo log error
+			log.Error("internal error:", err)
 			return
 		}
 		selectionNextJson_bytes, err := rsf.i1_decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string))
 		if err != nil {
-			// todo log error
+			log.Error("internal error:", err)
 			return
 		}
 
@@ -293,7 +294,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//	  - b.2) selectionNextJson_bytes 		is saved into 	i_procEng_selectionNextJson_filepath
 		i_procEng_tmpSubdirpath, err := ioutil.TempDir("", "tmpsubdir")
 		if err != nil {
-			// todo log error
+			log.Error("internal error:", err)
 			return
 		}
 		defer os.RemoveAll(i_procEng_tmpSubdirpath)
@@ -301,12 +302,12 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		i_procEng_selectionNextJson_filepath := filepath.Join(i_procEng_tmpSubdirpath, "consumer-selection.next.json")
 		err = os.WriteFile(i_procEng_selectionPreviousJson_filepath, selectionPreviousJson_bytes, 0644)
 		if err != nil {
-			// todo log error
+			log.Error("internal error:", err)
 			return
 		}
 		err = os.WriteFile(i_procEng_selectionNextJson_filepath, selectionNextJson_bytes, 0644)
 		if err != nil {
-			// todo log error
+			log.Error("internal error:", err)
 			return
 		}
 		//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
@@ -320,8 +321,11 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 				exitcode = exitError.ExitCode()
 			} else {
 				// err happened because of another internal failure
-				// todo: log err
-				// todo: this should propagate to sblock "Error"
+				log.Error("internal error:", err)
+				// this error should propagate to sblock "Error"
+				// and a quick-but-working-but-hacky-solution is to just hardcode exitcode = 222
+				// which will make sblock become "Error"
+				exitcode = 222
 				return
 			}
 		} else {
@@ -333,7 +337,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//	  - b.4) selectionNextJson_bytes 		is re-read from i_procEng_selectionNextJson_filepath (file might have been modified by engine)
 		selectionNextJson_bytes, err = os.ReadFile(i_procEng_selectionNextJson_filepath)
 		if err != nil {
-			// todo: log error
+			log.Error("internal error:", err)
 			return
 		}
 
@@ -344,17 +348,17 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		new_LatestUpdateData := make(map[string]interface{})
 		selectionNextJson_gzB64, err := rsf.i1_encode_bytes_to_gzB64(selectionNextJson_bytes)
 		if err != nil {
-			// todo: log error
+			log.Error("internal error:", err)
 			return
 		}
 		new_LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
 		cantDo, err = rsf.i1_update_Overall_LatestUpdateData(new_LatestUpdateData)
 		if err != nil {
-			// todo: log error
+			log.Error("internal error:", err)
 			return
 		}
 		if cantDo {
-			// todo: log error
+			log.Error("got unexpected 'cantDo' == true")
 			return
 		}
 
@@ -368,7 +372,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 			i_sblock.LatestUpdateStatus = "Completed"
 		} else {
 			// exitcode != 0
-			i_sblock.LatestUpdateStatus = "Error"
+			i_sblock.LatestUpdateStatus = "Error_" + fmt.Sprint(exitcode)
 		}
 
 		i_sblock.LatestUpdateStatusInfo = string(stdouterr_bytes)
@@ -376,11 +380,11 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 
 		cantDo, err = rsf.i1_update_LastSblock(i_sblock_is_the_finalSblock, i_sblock)
 		if err != nil {
-			// todo: log error
+			log.Error("internal error:", err)
 			return
 		}
 		if cantDo {
-			// todo: log error
+			log.Error("got unexpected 'cantDo' == true")
 			return
 		}
 		// ATP: i_sblock was updated successfully

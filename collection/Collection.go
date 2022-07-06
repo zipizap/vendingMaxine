@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"time"
 )
 
 type Collection struct {
@@ -22,19 +23,32 @@ func (c *Collection) LastRsf() (rsf *RequestStatusFlow, err error) {
 	return rsf, nil
 }
 
-// Tries to create a new RequestStatusFlow (rsf).
-// web_sblock should have:
-//   .LatestUpdateStatus: "Completed"
-//   .LatestUpdateData
-//		"consumer-selection.previous.json"
-//		"consumer-selection.next.json"
+// Tries to create a new RequestStatusFlow (rsf) from webdata
+// webdata must have following keys-values:
+//		"products.schema.json":             []byte of the json
+//		"consumer-selection.previous.json": []byte of the json
+//		"consumer-selection.next.json":     []byte of the json
 //
 // An implicit part of rsf creation, it that  rsf.runProcessingEngines() (async) will be launched asynchronously
 // (but it will not wait for runProcessingEngines() to complete, that is left running async)
 // If it cant do it =>  returns "cantDo == true"
-func (c *Collection) NewRsf(web_sblock StatusBlock) (cantDo bool, rsf *RequestStatusFlow, err error) {
+func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]interface{}) (cantDo bool, rsf *RequestStatusFlow, err error) {
 	rsf = &RequestStatusFlow{
 		Collection: c.Name,
+	}
+	t_now := time.Now()
+	web_sblock := StatusBlock{
+		Name:                   "WebConsumerSelection",
+		StartTime:              t_now,
+		LatestUpdateTime:       t_now,
+		LatestUpdateStatus:     "Completed",
+		LatestUpdateStatusInfo: "",
+		LatestUpdateUml:        "",
+		LatestUpdateData: map[string]interface{}{
+			"products.schema.json":             webdata["products.schema.json"],
+			"consumer-selection.previous.json": webdata["consumer-selection.previous.json"],
+			"consumer-selection.next.json":     webdata["consumer-selection.next.json"],
+		},
 	}
 	cantDo, err = rsf.new_from_webConsumerSelection(web_sblock)
 	if err != nil {
