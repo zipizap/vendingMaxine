@@ -39,8 +39,9 @@ do_initiation_if_necessary() {
 do_execution() {
   # TODO
 
-  echo "$(basename $0) is completed"
-  exit 5
+  echo "Crash boom bang stdout"
+  echo "Crash boom bang stderr" 1>&2
+  exit 1
 }
 
 

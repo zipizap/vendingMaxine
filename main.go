@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"proto-VD/collection"
+	"vendingMachine/src/webserver"
 
 	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
@@ -19,6 +18,7 @@ func init() {
 	//    log.Info("info message")
 }
 
+/*
 func test_somethings() {
 	col, err := collection.GetCollection("alpha")
 	if err != nil {
@@ -72,11 +72,12 @@ func test_somethings() {
 	collection.RunnersOfProcEngs_wg.Wait()
 	spew.Dump(rsf_new)
 }
+*/
 
 func main() {
 	// test_somethings()
 	// return
 
-	// launch gin webserver which loops-infinitely
-	ginWebserver()
+	// launch gin webserver - blocking
+	webserver.GinWebserver()
 }

@@ -67,7 +67,8 @@
           headers: {'Content-Type': 'application/json'}, 
           body: JSON.stringify(consumerSelectionNewJson)
         }).then(res => {
-          console.log("POST complete! response:", res);
+          console.log("POST response from server:", res);
+          window.location.href = "/collections";
         });
       });
 

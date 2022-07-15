@@ -1,0 +1,54 @@
+Kind: RequestStatusFlow
+Collection: alpha
+Status:
+    Overall:
+        Name: alpha
+        StartTime: 2022-07-15T18:11:38.155022874+02:00
+        LatestUpdateTime: 2022-07-15T18:11:38.155022874+02:00
+        LatestUpdateStatus: Error
+        LatestUpdateStatusInfo: |
+            Crash boom bang stdout
+            Crash boom bang stderr
+        LatestUpdateUml: |4
+            mainframe Collection alpha, request 2022-07-15 18:11:38.155022874 +0200 CEST
+            VD <-- WebConsumerSelection: Completed
+            note left of WebConsumerSelection #aqua
+
+            end note
+
+
+            VD <-- 1010.sshkey.engine: Error_1
+            note left of 1010.sshkey.engine #aqua
+            Crash boom bang stdout
+            Crash boom bang stderr
+
+            end note
+
+
+            hnote over VD: 2022-07-15 18:11:38.155022874 +0200 CEST
+
+        LatestUpdateData:
+            consumer-selection.next.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
+            consumer-selection.previous.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
+    ProcessingEngines:
+        - Name: WebConsumerSelection
+          StartTime: 2022-07-15T18:11:38.155022874+02:00
+          LatestUpdateTime: 2022-07-15T18:11:38.155022874+02:00
+          LatestUpdateStatus: Completed
+          LatestUpdateStatusInfo: ""
+          LatestUpdateUml: ""
+          LatestUpdateData:
+            consumer-selection.next.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
+            consumer-selection.previous.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
+            products.schema.json: H4sIAAAAAAAA/+xUTY/TMBC9768YWXsB9WOX2+bMhQNcdhFCVZDcZNJ4m9jBdqBRlP+O4tqtE7sR4gAXemiTeW9m3sw8tb8DACD3KiuxpiQBUmrdqGS7fVWCr8/hjZCHbS5pobfvHh6f1g9PW8tfndM10xWOyc9YYaahE62ERoq8zbS6kLrGcMT+FTPtojkWtK00SaAfbEji95ZJzEkCOxMBIC1neq1Q/mAZKmKiqaU3UjQoNUM1FnEJjBfCe/f6G2TlxZ34L1Ryxg8+lqPKJGs0E9wwhDwC4+NoB4lKbeC94BpahUDt1OInB8nUEZI3xNYZVvEppuqcis+c6WdHWYXyqZS084Ganj5orMd6jxPpbrG71AszS722vtHcawFASqQ5yhesm4pqQ+17UFgVG05rhGGY0qO3DoT1wwSI3N0iYw/ihdJJXtQAfuY86glUWk5PHogkIXhZ10uJ4N8UTLuAjydaN5WRt5th4/26dWvzyQxNg1LCeDEcFJznX/BkVH8dzVi0VQXz5Y2fYfI+TNsQpcojdrEm19EdJ1zODZ9aOG5LN0DEnPHGQeHf8SjszslpLHvBspZx058Wjy06csNlx/q14pi/jE8xv80GumFxy1oyulNLtUZp/gC/bd7ehyPO/RSLLDuuFvwg1vl+2XMfL6y/7jrTOt//oe3MeCrf/zfelfWPjHcXe3ZP59/xe/gFAAD//wEAAP//cjB+ExkJAAA=
+        - Name: 1010.sshkey.engine
+          StartTime: 2022-07-15T18:11:38.159579448+02:00
+          LatestUpdateTime: 2022-07-15T18:11:38.1746157+02:00
+          LatestUpdateStatus: Error_1
+          LatestUpdateStatusInfo: |
+            Crash boom bang stdout
+            Crash boom bang stderr
+          LatestUpdateUml: ""
+          LatestUpdateData:
+            consumer-selection.next.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
+            consumer-selection.previous.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA

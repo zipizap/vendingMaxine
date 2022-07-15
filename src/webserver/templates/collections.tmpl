@@ -1,0 +1,57 @@
+{{template "header.tmpl" .}}
+<section class="section">
+  <div class="container">
+    <h1 class="title">
+      Collections
+    </h1>
+    <div>
+    <button id='refresh'>Refresh</button>
+    </div>
+    <!-- <hr/>
+    {{ .collectionsOverallSblock }}
+    <hr/> -->
+    <table border = 1 bordercolor = grey align = left>
+      <th colspan = 14></th>
+      <tr>
+          <th colspan = 2>Collection</th>
+          <th colspan = 2>Status</th>
+          <th colspan = 4>Details</th>
+          <th colspan = 6>Status flow</th>
+      </tr>
+      {{range .collectionsOverallSblock}}
+      <tr>
+        <td colspan = 2><a href="/collection/{{.Name}}">{{.Name}}</a></th>
+        <td colspan = 2>{{.LatestUpdateStatus}}</th>
+        <td colspan = 4><pre>{{.LatestUpdateStatusInfo}}</pre></th>
+        <td colspan = 6><uml>{{.LatestUpdateUml}}</uml></td>
+      </tr>
+      {{end}}
+    </table>
+
+  </div>
+</section>
+<script>
+  document.getElementById('refresh').addEventListener('click',function() {    
+    location.reload();
+  });
+</script>
+
+<!-- plantUml -->
+<!-- https://jsfiddle.net/jmnote/0a41frk9/ -->
+
+    <!-- 
+    <script src="//code.jquery.com/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery.min.js"></script> 
+    -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="//cdn.rawgit.com/jmnote/plantuml-encoder/d133f316/dist/plantuml-encoder.min.js"></script>
+    <script>
+    $("uml").each(function() {
+      var src = "//www.plantuml.com/plantuml/img/" + window.plantumlEncoder.encode( $(this).text() )
+      $(this).replaceWith($('<img>').attr('src', src));
+    });
+    </script>
+
+
+
+{{template "footer.tmpl"}}

@@ -13,6 +13,8 @@ type Collection struct {
 	Name string // Name is always defined (since Collection creation)
 }
 
+var collectionBaseDir = filepath.Join("vd-internal", "collections")
+
 // todo: address case when there is no last-rsf file
 func (c *Collection) LastRsf() (rsf *RequestStatusFlow, err error) {
 	rsf = &RequestStatusFlow{Collection: c.Name}
@@ -24,19 +26,32 @@ func (c *Collection) LastRsf() (rsf *RequestStatusFlow, err error) {
 }
 
 // Tries to create a new RequestStatusFlow (rsf) from webdata
+//
 // webdata must have following keys-values:
-//		"products.schema.json":             []byte of the json
-//		"consumer-selection.previous.json": []byte of the json
-//		"consumer-selection.next.json":     []byte of the json
+//		"products.schema.json":             []byte of the json (not b64gz, but raw json bytes)
+//		"consumer-selection.previous.json": []byte of the json (not b64gz, but raw json bytes)
+//		"consumer-selection.next.json":     []byte of the json (not b64gz, but raw json bytes)
 //
 // An implicit part of rsf creation, it that  rsf.runProcessingEngines() (async) will be launched asynchronously
 // (but it will not wait for runProcessingEngines() to complete, that is left running async)
 // If it cant do it =>  returns "cantDo == true"
-func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]interface{}) (cantDo bool, rsf *RequestStatusFlow, err error) {
+func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]string) (cantDo bool, rsf *RequestStatusFlow, err error) {
 	rsf = &RequestStatusFlow{
 		Collection: c.Name,
 	}
 	t_now := time.Now()
+	productsSchemaJson_gzB64, err := encode_bytes_to_gzB64([]byte(webdata["products.schema.json"]))
+	if err != nil {
+		return false, nil, err
+	}
+	consumerSelectionPreviousJson_gzB64, err := encode_bytes_to_gzB64([]byte(webdata["consumer-selection.previous.json"]))
+	if err != nil {
+		return false, nil, err
+	}
+	consumerSelectionNextJson_gzB64, err := encode_bytes_to_gzB64([]byte(webdata["consumer-selection.next.json"]))
+	if err != nil {
+		return false, nil, err
+	}
 	web_sblock := StatusBlock{
 		Name:                   "WebConsumerSelection",
 		StartTime:              t_now,
@@ -45,9 +60,9 @@ func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]interfa
 		LatestUpdateStatusInfo: "",
 		LatestUpdateUml:        "",
 		LatestUpdateData: map[string]interface{}{
-			"products.schema.json":             webdata["products.schema.json"],
-			"consumer-selection.previous.json": webdata["consumer-selection.previous.json"],
-			"consumer-selection.next.json":     webdata["consumer-selection.next.json"],
+			"products.schema.json":             productsSchemaJson_gzB64,
+			"consumer-selection.previous.json": consumerSelectionPreviousJson_gzB64,
+			"consumer-selection.next.json":     consumerSelectionNextJson_gzB64,
 		},
 	}
 	cantDo, err = rsf.new_from_webConsumerSelection(web_sblock)
@@ -61,9 +76,9 @@ func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]interfa
 }
 
 // Calculates path-to-dir of collection.
-// Dirpath might or not exist yet in fs! Its just calculated (not created or checked)
+// That colDirpath might or not exist yet in fs! Its just calculated (not created or checked)
 func (c *Collection) dirpath() (colDirpath string) {
-	return filepath.Join("vd-internal", "collections", c.Name)
+	return filepath.Join(collectionBaseDir, c.Name)
 }
 
 // Returns []string of rel-path-and-filenames where first is newest-modified-file and last is oldest-modified-file

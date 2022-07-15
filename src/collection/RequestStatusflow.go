@@ -1,11 +1,7 @@
 package collection
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -44,6 +40,15 @@ type RequestStatusFlow struct {
 		Overall           StatusBlock   `yaml:"Overall"`
 		ProcessingEngines []StatusBlock `yaml:"ProcessingEngines"`
 	} `yaml:"Status"`
+}
+
+func (rsf *RequestStatusFlow) Get_OverallLatestUpdateData_Decoded(key string) (value string, err error) {
+	value_bytes, err := decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData[key].(string))
+	if err != nil {
+		return "", err
+	}
+	value = string(value_bytes)
+	return value, nil
 }
 
 // if new rsf can be created => yes == true
@@ -159,6 +164,7 @@ func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlo
 		StartTime:          web_sblock.LatestUpdateTime,
 		LatestUpdateTime:   web_sblock.LatestUpdateTime,
 		LatestUpdateStatus: "Ongoing_and_locked",
+		LatestUpdateUml:    "",
 		LatestUpdateData: map[string]interface{}{
 			"consumer-selection.previous.json": web_sblock.LatestUpdateData["consumer-selection.previous.json"],
 			"consumer-selection.next.json":     web_sblock.LatestUpdateData["consumer-selection.next.json"],
@@ -222,7 +228,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//					>> added at procEng-start
 		//
 		// b) Execute i_procEng_binary_filepath and get stdouterr_bytes + exitcode into i_sblock
-		//	  - b.0) selectionPreviousJson_bytes, selectionNextJson_bytes
+		//	  - b.0) read both selectionPreviousJson_bytes, selectionNextJson_bytes
 		// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
 		// 		  selectionNextJson_bytes 		is read from Overall.LatestUpdateData["consumer-selection.next.json"]
 		//	  - b.1) selectionPreviousJson_bytes	is saved into 	i_procEng_selectionPreviousJson_filepath
@@ -279,12 +285,12 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//	  - b.0) selectionPreviousJson_bytes, selectionNextJson_bytes
 		// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
 		// 		  selectionNextJson_bytes 		is read from Overall.LatestUpdateData["consumer-selection.next.json"]
-		selectionPreviousJson_bytes, err := Decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
+		selectionPreviousJson_bytes, err := decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
 		if err != nil {
 			log.Error("internal error:", err)
 			return
 		}
-		selectionNextJson_bytes, err := Decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string))
+		selectionNextJson_bytes, err := decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string))
 		if err != nil {
 			log.Error("internal error:", err)
 			return
@@ -346,7 +352,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		//			LatestUpdateData:
 		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
 		new_LatestUpdateData := make(map[string]interface{})
-		selectionNextJson_gzB64, err := Encode_bytes_to_gzB64(selectionNextJson_bytes)
+		selectionNextJson_gzB64, err := encode_bytes_to_gzB64(selectionNextJson_bytes)
 		if err != nil {
 			log.Error("internal error:", err)
 			return
@@ -517,7 +523,16 @@ func (rsf *RequestStatusFlow) i2_checkRsfCanBeUpdated() (yes bool, err error) {
 }
 
 // Saves rsf into lastFile
+//   - recalculates Overall.LatestUpdateUml
+//	 - saves to file
 func (rsf *RequestStatusFlow) i2_syncSaveToLastFile() (err error) {
+	// - recalculates Overall.LatestUpdateUml
+	err = rsf.i3_update_Overall_LatestUpdateUml()
+	if err != nil {
+		return err
+	}
+
+	// - saves to file
 	col, err := rsf.i1_getCollection()
 	if err != nil {
 		return err
@@ -591,9 +606,10 @@ func (rsf *RequestStatusFlow) i2_append_or_update_Sblock(append_or_update string
 }
 
 // This function reads lastSblock.LatestUpdateStatus and updates Overall.LatestUpdateStatus accordingly (or leaves unchanged)
+// It may also make Overall.LatestUpdateStatusInfo = lastSblock.LatestUpdateStatusInfo
 // See diagram, scheme titled "LatestUpdateStatus Transitions - Overall & ProcessingEngines"
 //
-// This functiond does not check if Overall.LatestUpdateStatus is valid-to-be-updated or not as it expects the calling
+// This function does not check if Overall.LatestUpdateStatus is valid-to-be-updated or not as it expects the calling
 // function to already have made that validation before calling this.
 // It assumes the Overall.LatestUpdateStatus is correct (ex:like "Ongoing_and_locked") and will not modify it, unless:
 //     LastSBlock.LatestUpdateStatus ~= "Error"
@@ -617,7 +633,9 @@ func (rsf *RequestStatusFlow) i2_autoupdate_OverallStatus(lastSblock_is_finalSbl
 			// lastSbStatus is "Error"
 			// so Overall.LatestUpdateStatus is updated (overwritten):
 			//    Overall.LatestUpdateStatus = "Error"
+			//    Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
 			rsf.Status.Overall.LatestUpdateStatus = "Error"
+			rsf.Status.Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
 		default:
 			// lastSbStatus is not recognized - error out
 			return fmt.Errorf("!crash boom bang! unrecognized lastSbStatus '%s'", lastSbStatus)
@@ -639,7 +657,9 @@ func (rsf *RequestStatusFlow) i2_autoupdate_OverallStatus(lastSblock_is_finalSbl
 			// lastSbStatus is "Error"
 			// so Overall.LatestUpdateStatus is updated (overwritten):
 			//    Overall.LatestUpdateStatus = "Error"
+			//    Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
 			rsf.Status.Overall.LatestUpdateStatus = "Error"
+			rsf.Status.Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
 		default:
 			// lastSbStatus is not recognized - error out
 			return fmt.Errorf("!crash boom bang! unrecognized lastSbStatus '%s' - aborting", lastSbStatus)
@@ -696,66 +716,52 @@ func (rsf *RequestStatusFlow) i1_getProcEngineBinariesList() (procEngineBinaries
 	return procEngineBinariesFilepaths, nil
 }
 
-// https://gist.github.com/alex-ant/aeaaf497055590dacba760af24839b8d
-func gUnzipData(data []byte) (resData []byte, err error) {
-	b := bytes.NewBuffer(data)
+func (rsf *RequestStatusFlow) i3_update_Overall_LatestUpdateUml() (err error) {
+	/*
+		@startuml
+		mainframe Collection Alpha, request 20220715172500
+		hnote over VD: 17:25.00
 
-	var r io.Reader
-	r, err = gzip.NewReader(b)
-	if err != nil {
-		return
+		VD <-- PE1: 1m30s, Completed
+
+		VD <-- PE2: 1m30s, Completed
+		note left of PE2 #aqua
+		end note
+
+		VD <- PE3: 1m30s, Error_5
+		note left of PE3 #red
+		This is displayed
+		left of PE3.
+		end note
+
+		hnote over VD: 17:25.02
+
+		@enduml
+	*/
+	var uml string
+	// define uml
+	{
+		uml = `
+@startuml
+mainframe Collection ` + rsf.Status.Overall.Name + `, request ` + rsf.Status.Overall.StartTime.String() + `
+hnote right of VD: ` + rsf.Status.Overall.StartTime.String()
+
+		for _, a_pe := range rsf.Status.ProcessingEngines {
+			uml = uml + `
+VD <-- ` + a_pe.Name + `: ` + a_pe.LatestUpdateStatus
+			if len(a_pe.LatestUpdateStatusInfo) > 0 {
+				uml = uml + `
+note left of ` + a_pe.Name + ` #aqua 
+` + a_pe.LatestUpdateStatusInfo + `
+end note
+`
+			}
+		}
+		uml = uml + `
+hnote right of VD: ` + rsf.Status.Overall.LatestUpdateTime.String() + `
+@enduml
+`
 	}
-
-	var resB bytes.Buffer
-	_, err = resB.ReadFrom(r)
-	if err != nil {
-		return
-	}
-
-	resData = resB.Bytes()
-
-	return
-}
-
-func gZipData(data []byte) (compressedData []byte, err error) {
-	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
-
-	_, err = gz.Write(data)
-	if err != nil {
-		return
-	}
-
-	if err = gz.Flush(); err != nil {
-		return
-	}
-
-	if err = gz.Close(); err != nil {
-		return
-	}
-
-	compressedData = b.Bytes()
-
-	return
-}
-
-func Encode_bytes_to_gzB64(bytes []byte) (gzB64 string, err error) {
-	gz, err := gZipData(bytes)
-	if err != nil {
-		return "", err
-	}
-	gzB64 = base64.StdEncoding.EncodeToString(gz)
-	return gzB64, nil
-}
-
-func Decode_gzB64_to_bytes(gzB64 string) (bytes []byte, err error) {
-	gz, err := base64.StdEncoding.DecodeString(gzB64)
-	if err != nil {
-		return nil, err
-	}
-	bytes, err = gUnzipData(gz)
-	if err != nil {
-		return nil, err
-	}
-	return bytes, nil
+	rsf.Status.Overall.LatestUpdateUml = uml
+	return nil
 }
