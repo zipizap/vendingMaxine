@@ -48,7 +48,7 @@
     <script>
     $("uml").each(function() {
       var src = "//www.plantuml.com/plantuml/img/" + window.plantumlEncoder.encode( $(this).text() )
-      $(this).replaceWith($('<img>').attr('src', src));
+      $(this).replaceWith($('<img>').attr('src', src).attr('style','height:128px'));
     });
     </script>
 
