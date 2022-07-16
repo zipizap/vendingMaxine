@@ -100,12 +100,18 @@ func (rsf *RequestStatusFlow) Get_OverallLatestUpdateData_Decoded(key string) (v
 //   - rsf has all empty-values, except rsf.Collection that is filled-up
 //		.Collection
 //
-// This function will then:
-//    a) check col.NewRsf_canBeCreated()
-//	  b) fill in the rsf struct with data from web_sblock, and syncSave to yaml file
-//    c) call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
-//
 func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlock) (cantDo bool, err error) {
+	// At start of this function, its expected:
+	//   - rsf has all empty-values, except rsf.Collection that is filled-up
+	//		.Collection
+	//
+	// This function will then:
+	//    a) check col.NewRsf_canBeCreated()
+	//	  b) fill in the rsf struct with data from web_sblock, and syncSave to yaml file
+	//    c) call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
+	//
+	//--------------------------------------
+
 	//    a) check col.NewRsf_canBeCreated()
 	col, err := rsf.i1_getCollection()
 	if err != nil {

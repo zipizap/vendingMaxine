@@ -14,11 +14,11 @@ import (
 	"vendingMaxine/src/webserver/helpers"
 )
 
-// a) Read consumerSelectionNewJson_string 		, from c.Request.Body
-// b.1) Read consumerSelectionPreviousJson_string
-// b.2) Read productsSchemaJson_string
-// c) Compose webdata and call col.NewRsf_from_WebconsumerSelection(webdata)
 func CollectionPostHandler() gin.HandlerFunc {
+	// a) Read consumerSelectionNewJson_string 		, from c.Request.Body
+	// b.1) Read consumerSelectionPreviousJson_string
+	// b.2) Read productsSchemaJson_string
+	// c) Compose webdata and call col.NewRsf_from_WebconsumerSelection(webdata)
 	return func(c *gin.Context) {
 		// session := sessions.Default(c)
 		// user := session.Get(globals.Userkey)

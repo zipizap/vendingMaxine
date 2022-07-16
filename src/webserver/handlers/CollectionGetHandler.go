@@ -10,16 +10,18 @@ import (
 	"vendingMaxine/src/webserver/helpers"
 )
 
-// Reads collection_name from urlpath
-// Read consumerSelectionPreviousJson_string from theCollection.LastRsf()
-//   NOTE: if last_rsf does not exist, this will fail badly... todo: improve this
-// Read productsSchemaJson_string from file PRODUCT_SCHEMA_JSON_FILEPATH
-// Send html-response composed by:
-//		"collection.tmpl"
-//		consumerSelectionPreviousJson_string
-//		productsSchemaJson_string
-//
 func CollectionGetHandler() gin.HandlerFunc {
+	// Reads collection_name from urlpath
+	// Read consumerSelectionPreviousJson_string from theCollection.LastRsf()
+	//   NOTE: if last_rsf does not exist, this will fail badly...
+	//	 TODO: improve this
+	//
+	// Read productsSchemaJson_string from file PRODUCT_SCHEMA_JSON_FILEPATH
+	// Send html-response composed by:
+	//		"collection.tmpl"
+	//		consumerSelectionPreviousJson_string
+	//		productsSchemaJson_string
+	//
 	return func(c *gin.Context) {
 		// session := sessions.Default(c)
 		// user := session.Get(globals.Userkey)

@@ -13,6 +13,6 @@ set -o nounset
 
 cd "${__dir}"
 export GO111MODULES=on
-exec go run src/main.go ${@}
+exec go run . ${@}
 
 
