@@ -41,7 +41,11 @@ do_execution() {
 #   sleep 120
 #   echo "sleep and all good"
 #   exit 0
-
+#   find /tmp -ls || true
+#   find /tmp -ls || true
+#   find /tmp -ls || true
+#   find /tmp -ls || true
+#   env
   echo "Crash boom bang stdout"
   echo "Crash boom bang stderr" 1>&2
   exit 1

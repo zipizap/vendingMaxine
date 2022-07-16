@@ -124,7 +124,7 @@ func (c *Collection) dirpath() (colDirpath string) {
 func (c *Collection) lastFiles(optional_filename_regexp ...string) (lastFilesRecentFirst []string, err error) {
 	// The optional_filename_regexp defaults to "RequestStatusFlow.*.yaml"
 	if len(optional_filename_regexp) == 0 {
-		optional_filename_regexp = append(optional_filename_regexp, "^RequestStatusFlow.*.yaml")
+		optional_filename_regexp = append(optional_filename_regexp, "^RequestStatusFlow.*.yaml$")
 	}
 	dirpath := c.dirpath()
 	if _, err := os.Stat(dirpath); os.IsNotExist(err) {

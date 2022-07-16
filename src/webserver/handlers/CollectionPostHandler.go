@@ -94,6 +94,7 @@ func CollectionPostHandler() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		//cantDo, rsf_new, err = col.NewRsf_from_WebconsumerSelection(webdata)
 		cantDo, _, err = col.NewRsf_from_WebconsumerSelection(webdata)
 		if err != nil {
 			log.Error(err)
@@ -113,6 +114,5 @@ func CollectionPostHandler() gin.HandlerFunc {
 		// 	collection.RunnersOfProcEngs_wg.Wait()
 		// 	spew.Dump(rsf_new)
 		// }
-
 	}
 }

@@ -165,7 +165,8 @@ func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlo
 
 	//    c) call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
 	RunnersOfProcEngs_wg.Add(1)
-	go rsf.i1_runProcessingEngines(true)
+	thisIstheFinalRunThatConcludesTheRsf := true
+	go rsf.i1_runProcessingEngines(thisIstheFinalRunThatConcludesTheRsf)
 	return false, nil
 }
 
