@@ -251,7 +251,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 			return
 		}
 		if cantDo {
-			log.Error("got unexpected 'cantDo' == true")
+			// if a previous sblock is "Error" then cantDo==true which is a normal outcome
 			return
 		}
 		// ATP: i_sblock was appended successfully
@@ -431,7 +431,7 @@ func (rsf *RequestStatusFlow) i1_getCollection() (col *Collection, err error) {
 func (rsf *RequestStatusFlow) i1_append_Sblock(new_sblock_is_finalSblock bool, new_sblock StatusBlock) (cantDo bool, err error) {
 	cantDo, err = rsf.i2_append_or_update_Sblock("append", new_sblock_is_finalSblock, new_sblock)
 	if err != nil {
-		return true, err
+		return false, err
 	}
 	return cantDo, nil
 }
@@ -568,19 +568,19 @@ func (rsf *RequestStatusFlow) i2_append_or_update_Sblock(append_or_update string
 	a_match_was_found := regexp.MustCompile(`Ongoing_and_locked|Completed|Error`).MatchString(new_sblock.LatestUpdateStatus)
 	if !a_match_was_found {
 		// there is no match, this new_sblock.LatestUpdateStatus is unknown
-		return true, fmt.Errorf("invalid new_sblock.LatestUpdateStatus '%s', was expecting Ongoing_and_locked|Completed|Error", new_sblock.LatestUpdateStatus)
+		return false, fmt.Errorf("invalid new_sblock.LatestUpdateStatus '%s', was expecting Ongoing_and_locked|Completed|Error", new_sblock.LatestUpdateStatus)
 	}
 
 	// Assure rsf struct is sync'ed from rsf-file
 	err = rsf.i1_syncLoadFromLastFile()
 	if err != nil {
-		return true, err
+		return false, err
 	}
 
 	// Validate rsf can be updated with new_sblock (either to _append_Sblock or _update_Sblock)
 	yes, err := rsf.i2_checkRsfCanBeUpdated()
 	if err != nil {
-		return true, err
+		return false, err
 	}
 	if !yes {
 		// rsf cannot be updated (either to _append_Sblock or _update_Sblock)
@@ -595,19 +595,19 @@ func (rsf *RequestStatusFlow) i2_append_or_update_Sblock(append_or_update string
 		// Update rsf struct, to update LastSblock to be new_sblock
 		rsf.Status.ProcessingEngines[len(rsf.Status.ProcessingEngines)-1] = new_sblock
 	} else {
-		return true, fmt.Errorf("unexpected argument append_or_update '%s'", append_or_update)
+		return false, fmt.Errorf("unexpected argument append_or_update '%s'", append_or_update)
 	}
 
 	// Now that new_sblock was appended as last-sblock of rsf struct, lets recalculate OverallStatus of rsf struct
 	err = rsf.i2_autoupdate_OverallStatus_OverallStatusInfo(new_sblock_is_finalSblock)
 	if err != nil {
-		return true, err
+		return false, err
 	}
 
 	// Save rsf struct by overwritting it into rsf-file
 	err = rsf.i2_syncSaveToLastFile()
 	if err != nil {
-		return true, err
+		return false, err
 	}
 	return false, nil
 }
