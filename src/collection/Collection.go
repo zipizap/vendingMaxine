@@ -25,6 +25,39 @@ func (c *Collection) LastRsf() (rsf *RequestStatusFlow, err error) {
 	return rsf, nil
 }
 
+// If NewRsf can be created: yes == true
+func (c *Collection) NewRsf_canBeCreated() (yes bool, err error) {
+	// NewRsf can be created if
+	//    a) LastRsf does not exist
+	//  or
+	//    b) LastRsf has .Status.Overall.LatestUpdateStatus ~= Error|Completed
+
+	// Lets check a)
+	lastFiles, err := c.lastFiles()
+	if err != nil {
+		return false, err
+	}
+	if len(lastFiles) == 0 {
+		// LastRst does not exist
+		return true, nil
+	}
+
+	// Lets check b)
+	lastRsf, err := c.LastRsf()
+	if err != nil {
+		return false, err
+	}
+	matchFound, err := regexp.MatchString("Completed|Error", lastRsf.Status.Overall.LatestUpdateStatus)
+	if err != nil {
+		return false, err
+	}
+	if matchFound {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
 // Tries to create a new RequestStatusFlow (rsf) from webdata
 //
 // webdata must have following keys-values:

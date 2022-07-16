@@ -16,6 +16,7 @@ web:
 +   Name: "alpha",
 + }
 + .LastRsf() (rsf *RequestStatusFlow, err error)
++ .NewRsf_canBeCreated()(yes bool, err error)
 + .NewRsf_from_WebconsumerSelection(webdata map[string]string)(cantDo bool, rsf *RequestStatusFlow, err error)
 + .dirpath()(colDirpath string, err error)
 + .lastFiles(optional_filename_regexp ...string) ( lastFilesRecentFirst []string, err error)
@@ -24,7 +25,6 @@ web:
 + collection.RequestStatusFlow{
 + }
 + .Get_OverallLatestUpdateData_Decoded(key string)(value string, err error)
-+ .checkNewRsfCanBeCreated()(yes bool, err error)
 + .new_from_webConsumerSelection(web_sblock StatusBlock) (cantDo bool, err error)
 + .i1_runProcessingEngines() -> async
 + .i1_syncLoadFromLastFile()(err error)
@@ -36,12 +36,13 @@ web:
 + .i2_checkRsfCanBeUpdated()(yes bool, err error)
 + .i2_syncSaveToLastFile()(err error)
 + .i2_append_or_update_Sblock(append_or_update string, new_sblock_is_finalSblock bool, new_sblock StatusBlock)
-+ .i2_autoupdate_OverallStatus(lastSblock_is_finalSblock bool)(err error)
++ .i2_autoupdate_OverallStatus_OverallStatusInfo(lastSblock_is_finalSblock bool)(err error)
 +   .i3_autoupdate_Overall_LatestUpdateUml() (err error)
 + encode_bytes_to_gzB64(bytes []byte) (gzB64 string, err error)
 + decode_gzB64_to_bytes(gzB64 string) (bytes []byte, err error)
 
 TODO:
+- html simple
 >> product.schema use-case
 >> "initiation": how to simple/elegant implement it
 >>>> NewCollection 
@@ -50,8 +51,14 @@ TODO:
       . new-collection: create new collection, create firstrsf that contains selection.next.json to be used in future get-requests
 >> subscription as a product, or subscription as a supra-product-delimiter
 
+>> LatestUpdateStatusInfo - crashes with "find /tmp -ls", probably needs to be stored gzipB64 and plantuml-trimmed
+>> CollectionPostHandler: check that the collection did not had any change since the Get
 
-Improvements:
+Improvements: 
+
+>> plantuml: add (delta-time) of each processingengine, like
+  VD <-- PE1: *1m30s*, Completed
+
 >> runProcessingEngines: ? deal with internal errors correctly (dont return, but instead update sblock with "Error")?
    Some improvements were made, check if there is still something pending
 >> gracefull shutdown of this ever-running-server...

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"vendingMachine/src/webserver/globals"
+	"vendingMaxine/src/webserver/globals"
 )
 
 func LoginGetHandler() gin.HandlerFunc {

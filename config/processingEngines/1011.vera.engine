@@ -39,7 +39,7 @@ do_initiation_if_necessary() {
 do_execution() {
   # TODO
 
-  echo "$(basename $0) is completed"
+  echo "txan txan!"
   exit 0
 }
 

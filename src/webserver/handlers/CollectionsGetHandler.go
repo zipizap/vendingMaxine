@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"vendingMachine/src/collection"
+	"vendingMaxine/src/collection"
 
 	log "github.com/sirupsen/logrus"
 )

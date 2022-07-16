@@ -10,9 +10,9 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 
-	"vendingMachine/src/webserver/globals"
-	"vendingMachine/src/webserver/middleware"
-	"vendingMachine/src/webserver/routes"
+	"vendingMaxine/src/webserver/globals"
+	"vendingMaxine/src/webserver/middleware"
+	"vendingMaxine/src/webserver/routes"
 )
 
 var (

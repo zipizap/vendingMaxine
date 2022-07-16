@@ -38,6 +38,9 @@ do_initiation_if_necessary() {
 
 do_execution() {
   # TODO
+#   sleep 120
+#   echo "sleep and all good"
+#   exit 0
 
   echo "Crash boom bang stdout"
   echo "Crash boom bang stderr" 1>&2

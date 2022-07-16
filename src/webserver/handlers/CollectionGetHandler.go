@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"vendingMachine/src/webserver/helpers"
+	"vendingMaxine/src/webserver/helpers"
 )
 
 // Reads collection_name from urlpath
@@ -28,16 +28,19 @@ func CollectionGetHandler() gin.HandlerFunc {
 		// ex: "alpha"
 		theCollection_name := c.Param("collection_name")
 
-		// Read consumerSelectionPreviousJson_string from theCollection.LastRsf
-		// Read productsSchemaJson_string from file
+		// Read consumerSelectionPreviousJson_string and productsSchemaJson_string
 		//
-		// 		NOTE: if lasT_rsf does not exist (ex: new collection) then err != nil
-		// 		and new collectino will never work
-		// 		todo: a newly-created-collection will never work as it does not have a last_rsf for bootstraping
-		consumerSelectionPreviousJson_string, productsSchemaJson_string, err := helpers.Get_selectionPrevious_and_prodSchema_from_collection(theCollection_name)
+		// NOTE: if lasT_rsf does not exist (ex: new collection) then err != nil and new collectino will never work
+		// TODO: a newly-created-collection will never work as it does not have a last_rsf for bootstraping
+		cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err := helpers.Get_selectionPrevious_and_prodSchema_from_collection(theCollection_name)
 		if err != nil {
 			log.Error(err)
 			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
+			return
+		} else if cantDo {
+			log.Info("received 'cantDo'")
+			// todo: show user indication that this collection cannot be edited at this moment
+			c.Redirect(http.StatusFound, "/collections")
 			return
 		}
 

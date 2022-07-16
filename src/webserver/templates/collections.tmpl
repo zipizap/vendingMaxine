@@ -11,19 +11,24 @@
     {{ .collectionsOverallSblock }}
     <hr/> -->
     <table border = 1 bordercolor = grey align = left>
-      <th colspan = 14></th>
       <tr>
-          <th colspan = 2>Collection</th>
-          <th colspan = 2>Status</th>
-          <th colspan = 4>Details</th>
-          <th colspan = 6>Status flow</th>
+          <th>Collection</th>
+          <th>Status</th>
+          <th>Details</th>
+          <th>Status flow details</th>
       </tr>
       {{range .collectionsOverallSblock}}
       <tr>
-        <td colspan = 2><a href="/collection/{{.Name}}">{{.Name}}</a></th>
-        <td colspan = 2>{{.LatestUpdateStatus}}</th>
-        <td colspan = 4><pre>{{.LatestUpdateStatusInfo}}</pre></th>
-        <td colspan = 6><uml>{{.LatestUpdateUml}}</uml></td>
+        <td><a href="/collection/{{.Name}}" target="_blank" rel="noopener noreferrer">{{.Name}}</a></th>
+        <td>{{.LatestUpdateStatus}}</th>
+        <td><small><pre>{{.LatestUpdateStatusInfo}}</pre></small></th>
+        <td>
+          {{- if ne .LatestUpdateStatus "Completed" -}}
+          <uml>{{.LatestUpdateUml}}</uml>
+          {{- else -}}
+          <umllink>{{.LatestUpdateUml}}</umllink>
+          {{- end -}}
+          </td>
       </tr>
       {{end}}
     </table>
@@ -48,7 +53,15 @@
     <script>
     $("uml").each(function() {
       var src = "//www.plantuml.com/plantuml/img/" + window.plantumlEncoder.encode( $(this).text() )
-      $(this).replaceWith($('<img>').attr('src', src).attr('style','height:128px'));
+      $(this).replaceWith(
+        $('<a>').attr('href', src).attr('target','_blank').attr('rel','noopener noreferrer').append(
+          $('<img>').attr('src', src).attr('style','height:64px')
+        )
+      );
+    });
+    $("umllink").each(function() {
+      var src = "//www.plantuml.com/plantuml/img/" + window.plantumlEncoder.encode( $(this).text() )
+      $(this).replaceWith($('<a>').attr('href', src).attr('target','_blank').attr('rel','noopener noreferrer').text('open diagram in new tab'));
     });
     </script>
 

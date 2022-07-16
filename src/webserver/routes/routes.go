@@ -3,7 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 
-	"vendingMachine/src/webserver/handlers"
+	"vendingMaxine/src/webserver/handlers"
 )
 
 func PublicRoutes(g *gin.RouterGroup) {

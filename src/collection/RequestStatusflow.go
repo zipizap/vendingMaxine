@@ -51,43 +51,6 @@ func (rsf *RequestStatusFlow) Get_OverallLatestUpdateData_Decoded(key string) (v
 	return value, nil
 }
 
-// if new rsf can be created => yes == true
-func (rsf *RequestStatusFlow) checkNewRsfCanBeCreated() (yes bool, err error) {
-	// NewRsf can be created if
-	//    a) LastRst does not exist
-	//  or
-	//    b) LastRst has .Status.Overall.LatestUpdateStatus ~= Error|Completed
-
-	// Lets check a)
-	col, err := rsf.i1_getCollection()
-	if err != nil {
-		return false, err
-	}
-	lastFiles, err := col.lastFiles()
-	if err != nil {
-		return false, err
-	}
-	if len(lastFiles) == 0 {
-		// LastRst does not exist
-		return true, nil
-	}
-
-	// Lets check b)
-	lastRsf, err := col.LastRsf()
-	if err != nil {
-		return false, err
-	}
-	matchFound, err := regexp.MatchString("Completed|Error", lastRsf.Status.Overall.LatestUpdateStatus)
-	if err != nil {
-		return false, err
-	}
-	if matchFound {
-		return true, nil
-	} else {
-		return false, nil
-	}
-}
-
 // // Validates if last-userviceflow-of-uname is Error|Completed (or does not exist) and if so then
 // // creates a new userviceflow file (unit-service.flow.xxxx.yaml) setting its
 // // .Kind|Name, .Status.Overall.Name|StartTime|LatestUpdateTime|LatestUpdateStatus (Ongoing_and_locked)
@@ -138,13 +101,17 @@ func (rsf *RequestStatusFlow) checkNewRsfCanBeCreated() (yes bool, err error) {
 //		.Collection
 //
 // This function will then:
-//    - rsf.checkNewRsfCanBeCreated()
-//	  - fill in the rsf struct with data from web_sblock, and syncSave to yaml file
-//    - call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
+//    a) check col.NewRsf_canBeCreated()
+//	  b) fill in the rsf struct with data from web_sblock, and syncSave to yaml file
+//    c) call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
 //
 func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlock) (cantDo bool, err error) {
-	//    - rsf.checkNewRsfCanBeCreated()
-	yes, err := rsf.checkNewRsfCanBeCreated()
+	//    a) check col.NewRsf_canBeCreated()
+	col, err := rsf.i1_getCollection()
+	if err != nil {
+		return true, err
+	}
+	yes, err := col.NewRsf_canBeCreated()
 	if err != nil {
 		return true, err
 	}
@@ -153,7 +120,7 @@ func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlo
 		return true, nil
 	}
 
-	//	  - fill in the rsf struct with data from web_sblock, and syncSave to yaml file
+	//	  b) fill in the rsf struct with data from web_sblock, and syncSave to yaml file
 	rsf.Kind = "RequestStatusFlow"
 	c, err := rsf.i1_getCollection()
 	if err != nil {
@@ -190,21 +157,21 @@ func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlo
 		return false, err
 	}
 
-	//    - call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
+	//    c) call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
 	RunnersOfProcEngs_wg.Add(1)
-	go rsf.i1_runProcessingEngines()
+	go rsf.i1_runProcessingEngines(true)
 	return false, nil
 }
 
 // This function should always be called into a go-routine: "go runProcessingEngines()"
-func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
+func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcludesTheRsf bool) {
 	defer RunnersOfProcEngs_wg.Done()
 
 	// for _, a_ProcEngine_Binary := range procenginebinaries {
 	// 	rsf.i1_append_Sblock(...)
 	// 	//execute a_ProcEngine_Binary and get stdouterr_bytes + exitcode
 	// 	rsf.i1_update_LastSblock(...)
-	//   }
+	// }
 
 	procEng_binaries, err := rsf.i1_getProcEngineBinariesList()
 	if err != nil {
@@ -213,10 +180,11 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 	}
 
 	procEng_binaries_indexLastElement := len(procEng_binaries) - 1
-	var i_sblock_is_the_finalSblock bool
+	var i_sblock_is_the_finalSblock_of_this_run bool
+	var i_sblock_is_the_finalSblock_that_concludes_the_rsf bool
 	for i, i_procEng_binary_filepath := range procEng_binaries {
 
-		//
+		// For each processingengine:
 		// a) In the start:
 		//   - a.1) Append i_sblock "Ongoing_and_locked" before executing the engine
 		//			LatestUpdateStatus:  "Ongoing_and_locked"
@@ -269,8 +237,9 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 			LatestUpdateData:       map[string]interface{}{},
 		}
 		i_sblock.LatestUpdateData["consumer-selection.previous.json"] = rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"]
-		i_sblock_is_the_finalSblock = (i == procEng_binaries_indexLastElement)
-		cantDo, err := rsf.i1_append_Sblock(i_sblock_is_the_finalSblock, i_sblock)
+		i_sblock_is_the_finalSblock_of_this_run = (i == procEng_binaries_indexLastElement)
+		i_sblock_is_the_finalSblock_that_concludes_the_rsf = i_sblock_is_the_finalSblock_of_this_run && thisIstheFinalRunThatConcludesTheRsf
+		cantDo, err := rsf.i1_append_Sblock(i_sblock_is_the_finalSblock_that_concludes_the_rsf, i_sblock)
 		if err != nil {
 			log.Error("internal error:", err)
 			return
@@ -384,7 +353,7 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 		i_sblock.LatestUpdateStatusInfo = string(stdouterr_bytes)
 		i_sblock.LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
 
-		cantDo, err = rsf.i1_update_LastSblock(i_sblock_is_the_finalSblock, i_sblock)
+		cantDo, err = rsf.i1_update_LastSblock(i_sblock_is_the_finalSblock_that_concludes_the_rsf, i_sblock)
 		if err != nil {
 			log.Error("internal error:", err)
 			return
@@ -399,6 +368,8 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines() {
 } // end func
 
 // Reset rsf and loads it again from file contents
+//	- load from file
+//  - gzB64 decode LatestUpdateStatusInfo of all StatusBlocks
 func (rsf *RequestStatusFlow) i1_syncLoadFromLastFile() (err error) {
 	col, err := rsf.i1_getCollection()
 	if err != nil {
@@ -420,6 +391,21 @@ func (rsf *RequestStatusFlow) i1_syncLoadFromLastFile() (err error) {
 	if err != nil {
 		return err
 	}
+
+	// gzB64 decode LatestUpdateStatusInfo of all StatusBlocks
+	raw, err := decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateStatusInfo)
+	if err != nil {
+		return err
+	}
+	rsf.Status.Overall.LatestUpdateStatusInfo = string(raw)
+	for i := range rsf.Status.ProcessingEngines {
+		raw, err = decode_gzB64_to_bytes(rsf.Status.ProcessingEngines[i].LatestUpdateStatusInfo)
+		if err != nil {
+			return err
+		}
+		rsf.Status.ProcessingEngines[i].LatestUpdateStatusInfo = string(raw)
+	}
+
 	return nil
 }
 
@@ -524,12 +510,27 @@ func (rsf *RequestStatusFlow) i2_checkRsfCanBeUpdated() (yes bool, err error) {
 
 // Saves rsf into lastFile
 //   - recalculates Overall.LatestUpdateUml
+//   - gzB64 encode LatestUpdateStatusInfo of all StatusBlocks
 //	 - saves to file
 func (rsf *RequestStatusFlow) i2_syncSaveToLastFile() (err error) {
 	// - recalculates Overall.LatestUpdateUml
 	err = rsf.i3_update_Overall_LatestUpdateUml()
 	if err != nil {
 		return err
+	}
+
+	// gzB64 encode LatestUpdateStatusInfo of all StatusBlocks
+	gzB64, err := encode_bytes_to_gzB64([]byte(rsf.Status.Overall.LatestUpdateStatusInfo))
+	if err != nil {
+		return err
+	}
+	rsf.Status.Overall.LatestUpdateStatusInfo = gzB64
+	for i := range rsf.Status.ProcessingEngines {
+		gzB64, err = encode_bytes_to_gzB64([]byte(rsf.Status.ProcessingEngines[i].LatestUpdateStatusInfo))
+		if err != nil {
+			return err
+		}
+		rsf.Status.ProcessingEngines[i].LatestUpdateStatusInfo = gzB64
 	}
 
 	// - saves to file
@@ -592,7 +593,7 @@ func (rsf *RequestStatusFlow) i2_append_or_update_Sblock(append_or_update string
 	}
 
 	// Now that new_sblock was appended as last-sblock of rsf struct, lets recalculate OverallStatus of rsf struct
-	err = rsf.i2_autoupdate_OverallStatus(new_sblock_is_finalSblock)
+	err = rsf.i2_autoupdate_OverallStatus_OverallStatusInfo(new_sblock_is_finalSblock)
 	if err != nil {
 		return true, err
 	}
@@ -615,10 +616,11 @@ func (rsf *RequestStatusFlow) i2_append_or_update_Sblock(append_or_update string
 //     LastSBlock.LatestUpdateStatus ~= "Error"
 // in which case it will overwrite
 //     Overall.LatestUpdateStatus = "Error"
+//	   Overall.LatestUpdateStatusInfo = lastSblock.LatestUpdateStatusInfo
 //
 // :) Think very well before trying to change Status and transitions, as it implies changes in this function and
 // many other functions besides this one :)
-func (rsf *RequestStatusFlow) i2_autoupdate_OverallStatus(lastSblock_is_finalSblock bool) (err error) {
+func (rsf *RequestStatusFlow) i2_autoupdate_OverallStatus_OverallStatusInfo(lastSblock_is_finalSblock bool) (err error) {
 
 	lastSb := rsf.Status.ProcessingEngines[len(rsf.Status.ProcessingEngines)-1]
 	lastSbStatus := lastSb.LatestUpdateStatus
@@ -635,7 +637,7 @@ func (rsf *RequestStatusFlow) i2_autoupdate_OverallStatus(lastSblock_is_finalSbl
 			//    Overall.LatestUpdateStatus = "Error"
 			//    Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
 			rsf.Status.Overall.LatestUpdateStatus = "Error"
-			rsf.Status.Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
+			rsf.Status.Overall.LatestUpdateStatusInfo = lastSb.Name + ":\n" + lastSb.LatestUpdateStatusInfo
 		default:
 			// lastSbStatus is not recognized - error out
 			return fmt.Errorf("!crash boom bang! unrecognized lastSbStatus '%s'", lastSbStatus)
@@ -659,7 +661,7 @@ func (rsf *RequestStatusFlow) i2_autoupdate_OverallStatus(lastSblock_is_finalSbl
 			//    Overall.LatestUpdateStatus = "Error"
 			//    Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
 			rsf.Status.Overall.LatestUpdateStatus = "Error"
-			rsf.Status.Overall.LatestUpdateStatusInfo = lastSb.LatestUpdateStatusInfo
+			rsf.Status.Overall.LatestUpdateStatusInfo = lastSb.Name + ":\n" + lastSb.LatestUpdateStatusInfo
 		default:
 			// lastSbStatus is not recognized - error out
 			return fmt.Errorf("!crash boom bang! unrecognized lastSbStatus '%s' - aborting", lastSbStatus)
@@ -720,21 +722,19 @@ func (rsf *RequestStatusFlow) i3_update_Overall_LatestUpdateUml() (err error) {
 	/*
 		@startuml
 		mainframe Collection Alpha, request 20220715172500
-		hnote over VD: 17:25.00
+		hnote right of VD: 17:25.00
 
 		VD <-- PE1: 1m30s, Completed
 
 		VD <-- PE2: 1m30s, Completed
-		note left of PE2 #aqua
-		end note
 
 		VD <- PE3: 1m30s, Error_5
-		note left of PE3 #red
+		note over PE3 #red
 		This is displayed
-		left of PE3.
+		if LatestUpdateStatusInfo != ""
 		end note
 
-		hnote over VD: 17:25.02
+		hnote right of VD: 17:25.02
 
 		@enduml
 	*/
@@ -751,7 +751,7 @@ hnote right of VD: ` + rsf.Status.Overall.StartTime.String()
 VD <-- ` + a_pe.Name + `: ` + a_pe.LatestUpdateStatus
 			if len(a_pe.LatestUpdateStatusInfo) > 0 {
 				uml = uml + `
-note left of ` + a_pe.Name + ` #aqua 
+note over ` + a_pe.Name + ` #aqua 
 ` + a_pe.LatestUpdateStatusInfo + `
 end note
 `

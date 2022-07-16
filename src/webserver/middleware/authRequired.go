@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"vendingMachine/src/webserver/globals"
+	"vendingMaxine/src/webserver/globals"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"

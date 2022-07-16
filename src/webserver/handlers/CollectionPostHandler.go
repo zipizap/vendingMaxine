@@ -4,22 +4,20 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/gin-gonic/gin"
 
-	"vendingMachine/src/collection"
-	"vendingMachine/src/webserver/helpers"
+	"vendingMaxine/src/collection"
+	"vendingMaxine/src/webserver/helpers"
 )
 
-// Read consumerSelectionNewJson_string 		, from c.Request.Body
-// Read consumerSelectionPreviousJson_string
-// Read productsSchemaJson_string
-// Compose webdata and call col.NewRsf_from_WebconsumerSelection(webdata)
+// a) Read consumerSelectionNewJson_string 		, from c.Request.Body
+// b.1) Read consumerSelectionPreviousJson_string
+// b.2) Read productsSchemaJson_string
+// c) Compose webdata and call col.NewRsf_from_WebconsumerSelection(webdata)
 func CollectionPostHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// session := sessions.Default(c)
@@ -27,7 +25,7 @@ func CollectionPostHandler() gin.HandlerFunc {
 
 		theCollection_name := c.Param("collection_name")
 
-		// Read consumerSelectionNewJson_string 		, from c.Request.Body
+		// a) Read consumerSelectionNewJson_string 		, from c.Request.Body
 		consumerSelectionNewJson_bytes, err := ioutil.ReadAll(c.Request.Body)
 		if err != nil {
 			log.Error(err)
@@ -54,7 +52,9 @@ func CollectionPostHandler() gin.HandlerFunc {
 		// 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		// 	return
 		// }
-
+		//
+		//----------------------------------------------------------------------------------------------
+		//
 		// c.JSON(http.StatusOK, gin.H{
 		// 	"collection": theCollection_name,
 		// })
@@ -65,17 +65,24 @@ func CollectionPostHandler() gin.HandlerFunc {
 		// 	return
 		// }
 
-		// Read consumerSelectionPreviousJson_string
-		// Read productsSchemaJson_string
+		// b.1) Read consumerSelectionPreviousJson_string
+		// b.2) Read productsSchemaJson_string
+		var consumerSelectionPreviousJson_string string
+		var productsSchemaJson_string string
 		log.Info(fmt.Sprintf("Processing collection '%s'", theCollection_name))
-		consumerSelectionPreviousJson_string, productsSchemaJson_string, err := helpers.Get_selectionPrevious_and_prodSchema_from_collection(theCollection_name)
+		cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err := helpers.Get_selectionPrevious_and_prodSchema_from_collection(theCollection_name)
 		if err != nil {
+			log.Error(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		} else if cantDo {
+			err = fmt.Errorf("this collection cannot be edited at this moment. Maybe someone edited already and its being processed")
 			log.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Compose webdata and call col.NewRsf_from_WebconsumerSelection(webdata)
+		// c) Compose webdata and call col.NewRsf_from_WebconsumerSelection(webdata)
 		webdata := map[string]string{
 			"products.schema.json":             productsSchemaJson_string,
 			"consumer-selection.previous.json": consumerSelectionPreviousJson_string,
@@ -87,7 +94,7 @@ func CollectionPostHandler() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		cantDo, rsf_new, err := col.NewRsf_from_WebconsumerSelection(webdata)
+		cantDo, _, err = col.NewRsf_from_WebconsumerSelection(webdata)
 		if err != nil {
 			log.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -98,14 +105,14 @@ func CollectionPostHandler() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-
 		// ATP: runProcessingEngines() is running async
+
 		//  If we want to wait for it to complete running, and then show the rsf_new updated
 		// with the ProcEng final results, then we need to use collction.RunnersOfProcEngs_wg.Wait()
-		{
-			collection.RunnersOfProcEngs_wg.Wait()
-			spew.Dump(rsf_new)
-		}
+		// {
+		// 	collection.RunnersOfProcEngs_wg.Wait()
+		// 	spew.Dump(rsf_new)
+		// }
 
 	}
 }

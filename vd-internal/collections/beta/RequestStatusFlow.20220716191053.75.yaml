@@ -1,36 +1,32 @@
 Kind: RequestStatusFlow
-Collection: alpha
+Collection: beta
 Status:
     Overall:
-        Name: alpha
-        StartTime: 2022-07-15T18:33:40.886611402+02:00
-        LatestUpdateTime: 2022-07-15T18:33:40.886611402+02:00
+        Name: beta
+        StartTime: 2022-07-16T19:10:53.756212393+02:00
+        LatestUpdateTime: 2022-07-16T19:10:53.756212393+02:00
         LatestUpdateStatus: Error
-        LatestUpdateStatusInfo: |
-            Crash boom bang stdout
-            Crash boom bang stderr
-        LatestUpdateUml: "\n@startuml\nmainframe Collection alpha, request 2022-07-15 18:33:40.886611402 +0200 CEST\nVD <-- WebConsumerSelection: Completed\nVD <-- 1010.sshkey.engine: Error_1\nnote left of 1010.sshkey.engine #aqua \nCrash boom bang stdout\nCrash boom bang stderr\n\nend note\n\nhnote right of VD: 2022-07-15 18:33:40.886611402 +0200 CEST\n@enduml\n"
+        LatestUpdateStatusInfo: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwajIQejcePb83cJV0aqZ2p4UY5jdQfCYY+P2IHgrMcSN5ySnkWtaqw/8zGwURwXQKvcPAWkw3HwAAAP//AQAA//88AXyKWwAAAA==
+        LatestUpdateUml: "\n@startuml\nmainframe Collection beta, request 2022-07-16 19:10:53.756212393 +0200 CEST\nhnote right of VD: 2022-07-16 19:10:53.756212393 +0200 CEST\nVD <-- WebConsumerSelection: Completed\nVD <-- 1010.sshkey.engine: Error_1\nnote over 1010.sshkey.engine #aqua \nCrash boom bang stdout\nCrash boom bang stderr\n\nend note\n\nhnote right of VD: 2022-07-16 19:10:53.756212393 +0200 CEST\n@enduml\n"
         LatestUpdateData:
             consumer-selection.next.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
             consumer-selection.previous.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
     ProcessingEngines:
         - Name: WebConsumerSelection
-          StartTime: 2022-07-15T18:33:40.886611402+02:00
-          LatestUpdateTime: 2022-07-15T18:33:40.886611402+02:00
+          StartTime: 2022-07-16T19:10:53.756212393+02:00
+          LatestUpdateTime: 2022-07-16T19:10:53.756212393+02:00
           LatestUpdateStatus: Completed
-          LatestUpdateStatusInfo: ""
+          LatestUpdateStatusInfo: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwajIQejcePb83cJV0aqZ2p4UY5jdQfCYY+P2IHgrMcSN5ySnkWtaqw/8zGwURwXQKvcPAWkw3HwAAAP//AQAA//88AXyKWwAAAA==
           LatestUpdateUml: ""
           LatestUpdateData:
             consumer-selection.next.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
             consumer-selection.previous.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
             products.schema.json: H4sIAAAAAAAA/+xUTY/TMBC9768YWXsB9WOX2+bMhQNcdhFCVZDcZNJ4m9jBdqBRlP+O4tqtE7sR4gAXemiTeW9m3sw8tb8DACD3KiuxpiQBUmrdqGS7fVWCr8/hjZCHbS5pobfvHh6f1g9PW8tfndM10xWOyc9YYaahE62ERoq8zbS6kLrGcMT+FTPtojkWtK00SaAfbEji95ZJzEkCOxMBIC1neq1Q/mAZKmKiqaU3UjQoNUM1FnEJjBfCe/f6G2TlxZ34L1Ryxg8+lqPKJGs0E9wwhDwC4+NoB4lKbeC94BpahUDt1OInB8nUEZI3xNYZVvEppuqcis+c6WdHWYXyqZS084Ganj5orMd6jxPpbrG71AszS722vtHcawFASqQ5yhesm4pqQ+17UFgVG05rhGGY0qO3DoT1wwSI3N0iYw/ihdJJXtQAfuY86glUWk5PHogkIXhZ10uJ4N8UTLuAjydaN5WRt5th4/26dWvzyQxNg1LCeDEcFJznX/BkVH8dzVi0VQXz5Y2fYfI+TNsQpcojdrEm19EdJ1zODZ9aOG5LN0DEnPHGQeHf8SjszslpLHvBspZx058Wjy06csNlx/q14pi/jE8xv80GumFxy1oyulNLtUZp/gC/bd7ehyPO/RSLLDuuFvwg1vl+2XMfL6y/7jrTOt//oe3MeCrf/zfelfWPjHcXe3ZP59/xe/gFAAD//wEAAP//cjB+ExkJAAA=
         - Name: 1010.sshkey.engine
-          StartTime: 2022-07-15T18:33:40.890028428+02:00
-          LatestUpdateTime: 2022-07-15T18:33:40.898023565+02:00
+          StartTime: 2022-07-16T19:10:53.759156511+02:00
+          LatestUpdateTime: 2022-07-16T19:10:53.765535684+02:00
           LatestUpdateStatus: Error_1
-          LatestUpdateStatusInfo: |
-            Crash boom bang stdout
-            Crash boom bang stderr
+          LatestUpdateStatusInfo: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwajIQejcePb83cJV0aqZ2p4UY5jdQfCYY+P2IHgrMcSN5ySnkWtaqw/8zGwURwXQKvcPAWkw3HwAAAP//AQAA//88AXyKWwAAAA==
           LatestUpdateUml: ""
           LatestUpdateData:
             consumer-selection.next.json: H4sIAAAAAAAA/1TKwQ2EIBAF0F7+GRqgFDYcWJkIUcAwagJkejcePb83cZV0aqZ2p4UY5jdRfCYY+P2IHgrMcaP+klPItaxVh/9nNgq9Q5zCGDCwFuLkAQAA//8BAAD///Enbm1aAAAA
