@@ -108,6 +108,33 @@ func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]string)
 	return false, rsf, nil
 }
 
+func (c *Collection) NewRsf_2start_WebconsumerSelection(collectionName string) (cantDo bool, consumerSelectionPreviousJson_string string, productsSchemaJson_string string, err error) {
+	// This function will:
+	//   a) Check if theCollection_name exists (and return error if not)
+	//	 b) Check if theCollection.NewRsf_canBeCreated
+	//   c) Read consumerSelectionPreviousJson_string from theCollection.LastRsf
+	//   d) Read productsSchemaJson_string from file PRODUCT_SCHEMA_JSON_FILEPATH
+	// 	 e) create newRsf with remaining fields, and Status.Overall.
+	//			LatestUpdateStatus: "Ongoing_and_locked"
+	//			LatestUpdateData:
+	//				"consumer-selection.previous.json": <gz.b64>  >> copied from previous lastRsf.Status.Overall["consumer-selection.next.json"]
+	//
+	//	 f.1) create empty-file + syncSave (like Collection.go:LOC148-169)
+	//	 f.2) call rsf.i1_runProcessingEngines("assemble",false) (in this same goroutine! blocking!)
+	//				TODO: i1_runProcessingEngines needs improvement for arg "assemble|execute"
+	//
+	//   g) now that all processingengines-assembly were executed, return
+	************************
+	***** continue here ****
+	rethink this: a get request would leave the rsf in "ongoing_and_blocked" indefinitely... 
+
+	//
+	// 		NOTE: if last_rsf does not exist (ex: new collection) then err != nil
+	// 		and new collectino will never work
+	// 		todo: a newly-created-collection might never work as it might not have a last_rsf for initial bootstraping
+
+}
+
 // Calculates path-to-dir of collection.
 // That colDirpath might or not exist yet in fs! Its just calculated (not created or checked)
 func (c *Collection) dirpath() (colDirpath string) {
