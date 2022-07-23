@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"vendingMaxine/src/collection"
+	"vendingMaxine/src/webserver/helpers"
 )
 
 func CollectionGetHandler() gin.HandlerFunc {
@@ -32,17 +32,9 @@ func CollectionGetHandler() gin.HandlerFunc {
 
 		// Read consumerSelectionPreviousJson_string and productsSchemaJson_string
 		//
-		// NOTE: if last_rsf does not exist (ex: new collection) then err != nil and new collectino will never work
+		// NOTE: if lasT_rsf does not exist (ex: new collection) then err != nil and new collectino will never work
 		// TODO: a newly-created-collection will never work as it does not have a last_rsf for bootstraping
-		//
-		// cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err := helpers.Get_selectionPrevious_and_prodSchema_from_collection(theCollection_name)
-		col, err := collection.GetCollection(theCollection_name)
-		if err != nil {
-			log.Error(err)
-			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
-			return
-		}
-		cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err := col.NewRsf_2start_WebconsumerSelection(theCollection_name)
+		cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err := helpers.Get_selectionPrevious_and_prodSchema_from_collection(theCollection_name)
 		if err != nil {
 			log.Error(err)
 			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
