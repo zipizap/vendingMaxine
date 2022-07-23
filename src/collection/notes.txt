@@ -2,15 +2,17 @@ web:
 + GP  /collection/:collection_name
 . G   /login
 . G   /logout
-+. G   /collections
++. G  /collections
 + -show status existing collections
  -button_cr_collection
  -button_del_collection
++ G   /engines/reassemble
 
 + collection.
-+ .GetCollection(cname string) (col *Collection, err error)
-.NewCollection(cname string) (col *Collection, err error)
-.DeleteCollection(cname string) (col *Collection, err error)
++ GetCollection(cname string) (col *Collection, err error)
++ GetAllCollections(optional_collectionName_regexp ...string) (cols []*Collection, err error)
++ NewCollection(cname string) (col *Collection, err error)
+DeleteCollection(cname string) (col *Collection, err error)
 
 + collection.Collection{
 +   Name: "alpha",
@@ -18,6 +20,8 @@ web:
 + .LastRsf() (rsf *RequestStatusFlow, err error)
 + .NewRsf_canBeCreated()(yes bool, err error)
 + .NewRsf_from_WebconsumerSelection(webdata map[string]string)(cantDo bool, rsf *RequestStatusFlow, err error)
+.NewRsf_for_ProcEngAssembly(data map[string]string)(cantDo bool, rsf *RequestStatusFlow, err error)
+
 + .dirpath()(colDirpath string, err error)
 + .lastFiles(optional_filename_regexp ...string) ( lastFilesRecentFirst []string, err error)
 
@@ -42,13 +46,43 @@ web:
 + decode_gzB64_to_bytes(gzB64 string) (bytes []byte, err error)
 
 TODO:
-- html simple
->> product.schema use-case
->> "initiation": how to simple/elegant implement it
+>> "assembly": how to simple/elegant implement it
 >>>> NewCollection 
       . see comments in function body
       . (needs "initiation" to create first Rsf of new collection)
       . new-collection: create new collection, create firstrsf that contains selection.next.json to be used in future get-requests
+- Get handler
+- replicate 
+collection.NewRsf_from_WebconsumerSelection --> 
+collection.NewRsf_for_ProcEngAssembly(data map[string]string)(cantDo bool, rsf *RequestStatusFlow, err error)
+
+collections, err := collection.GetAllCollections()
+if err != nil {
+  c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
+  return
+}
+---
+for_,  a_col := range collections { 
+  go func() {
+    while : {
+      cantDo, rsf, err := a_col.NewRsf_for_ProcEngAssembly(data map[string]string)
+      if err != nil {
+        log.Error)(err)
+        return
+      }
+      else if cantDo {
+        # retry after 5s
+        sleep 10
+        continue
+      } else {
+        return
+      }
+    }
+  }
+}
+
+- html simple
+>> product.schema use-case
 >> subscription as a product, or subscription as a supra-product-delimiter
 
 >> LatestUpdateStatusInfo - crashes with "find /tmp -ls", probably needs to be stored gzipB64 and plantuml-trimmed

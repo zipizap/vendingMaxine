@@ -20,5 +20,6 @@ func PrivateRoutes(g *gin.RouterGroup) {
 	g.GET("/collections", handlers.CollectionsGetHandler())
 	g.GET("/collection/:collection_name", handlers.CollectionGetHandler())
 	g.POST("/collection/:collection_name", handlers.CollectionPostHandler())
+	g.GET("/engines/reassemble", handlers.EnginesReassembleGetHandler())
 
 }

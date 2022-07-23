@@ -46,9 +46,11 @@ do_execution() {
 #   find /tmp -ls || true
 #   find /tmp -ls || true
 #   env
-  echo "Crash boom bang stdout"
-  echo "Crash boom bang stderr" 1>&2
-  exit 1
+
+#   echo "Crash boom bang stdout"
+#   echo "Crash boom bang stderr" 1>&2
+#   exit 1
+    exit 0
 }
 
 
