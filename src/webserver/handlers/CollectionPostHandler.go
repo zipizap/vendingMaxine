@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"vendingMaxine/src/collection"
-	"vendingMaxine/src/webserver/helpers"
 )
 
 func CollectionPostHandler() gin.HandlerFunc {
@@ -70,7 +69,13 @@ func CollectionPostHandler() gin.HandlerFunc {
 		var consumerSelectionPreviousJson_string string
 		var productsSchemaJson_string string
 		log.Info(fmt.Sprintf("Processing collection '%s'", theCollection_name))
-		cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err := helpers.Get_selectionPrevious_and_prodSchema_from_collection(theCollection_name)
+		col, err := collection.CollectionGet(theCollection_name)
+		if err != nil {
+			log.Error(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err := col.Get_selectionPrevious_and_prodSchema_from_collection()
 		if err != nil {
 			log.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -88,7 +93,7 @@ func CollectionPostHandler() gin.HandlerFunc {
 			"consumer-selection.previous.json": consumerSelectionPreviousJson_string,
 			"consumer-selection.next.json":     consumerSelectionNewJson_string,
 		}
-		col, err := collection.GetCollection(theCollection_name)
+		col, err = collection.CollectionGet(theCollection_name)
 		if err != nil {
 			log.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

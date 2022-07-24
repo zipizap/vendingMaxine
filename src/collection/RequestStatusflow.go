@@ -96,19 +96,40 @@ func (rsf *RequestStatusFlow) Get_OverallLatestUpdateData_Decoded(key string) (v
 // 	return usf, nil
 // }
 
+// This functions should be called in an almost-empty rsf. The function will initialize rsf Overall
+// and add desired_block as first ProcessingEngines[0]. Then launches sequential-run-of-processing-engines (passing procEng_indication)
+//
 // At start of this function, its expected:
-//   - rsf has all empty-values, except rsf.Collection that is filled-up
+//   - rsf has all empty-values, except rsf.Collection that must come defined already
 //		.Collection
 //
-func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlock) (cantDo bool, err error) {
+func (rsf *RequestStatusFlow) new_from_sblock(desired_sblock StatusBlock, procEng_indication string) (cantDo bool, err error) {
+	// This functions should be called in an almost-empty rsf. The function will initialize rsf Overall
+	// and add desired_block as first ProcessingEngines[0]. Then launches sequential-run-of-processing-engines (passing procEng_indication)
+	//
 	// At start of this function, its expected:
-	//   - rsf has all empty-values, except rsf.Collection that is filled-up
+	//   - rsf has all empty-values, except rsf.Collection that must come defined already
 	//		.Collection
 	//
 	// This function will then:
 	//    a) check col.NewRsf_canBeCreated()
-	//	  b) fill in the rsf struct with data from web_sblock, and syncSave to yaml file
-	//    c) call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
+	//	  b) fill in the rsf struct with data from desired_sblock, and syncSave to yaml file
+	//		b.1) fill in the rsf struct with data from desired_sblock
+	//	  	New rsf will have:
+	//		.Status
+	//			.Overall:
+	//			 	Name:               <rsf-collection-name>,
+	// 				StartTime:          desired_sblock.LatestUpdateTime,
+	// 				LatestUpdateTime:   desired_sblock.LatestUpdateTime,
+	//			 	LatestUpdateStatus: "Ongoing_and_locked",
+	// 				LatestUpdateUml:    "",
+	// 				LatestUpdateData: map[string]interface{} <- copy of desired_sblock.LatestUpdateData
+	//			.ProcessingEngines:
+	//				- <<appended desired_sblock which is the first block>>
+	//
+	//		b.2) syncSave to yaml file
+	//
+	//    c) call rsf.i1_runProcessingEngines(false, procEng_indication) which will be launched (async) and left running asynchronously
 	//
 	//--------------------------------------
 
@@ -126,25 +147,45 @@ func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlo
 		return true, nil
 	}
 
-	//	  b) fill in the rsf struct with data from web_sblock, and syncSave to yaml file
+	//	  b) fill in the rsf struct with data from desired_sblock, and syncSave to yaml file
+	//		b.1) fill in the rsf struct with data from desired_sblock
+	//	  	New rsf will have:
+	//		.Status
+	//			.Overall:
+	//			 	Name:               <rsf-collection-name>,
+	// 				StartTime:          desired_sblock.LatestUpdateTime,
+	// 				LatestUpdateTime:   desired_sblock.LatestUpdateTime,
+	//			 	LatestUpdateStatus: "Ongoing_and_locked",
+	// 				LatestUpdateUml:    "",
+	// 				LatestUpdateData: map[string]interface{} <- copy of desired_sblock.LatestUpdateData
+	//			.ProcessingEngines:
+	//				- <<appended desired_sblock which is the first block>>
 	rsf.Kind = "RequestStatusFlow"
 	c, err := rsf.i1_getCollection()
 	if err != nil {
 		return true, err
 	}
-	rsf.Status.Overall = StatusBlock{
+	new_Overall_sblock := StatusBlock{
 		Name:               c.Name,
-		StartTime:          web_sblock.LatestUpdateTime,
-		LatestUpdateTime:   web_sblock.LatestUpdateTime,
+		StartTime:          desired_sblock.LatestUpdateTime,
+		LatestUpdateTime:   desired_sblock.LatestUpdateTime,
 		LatestUpdateStatus: "Ongoing_and_locked",
 		LatestUpdateUml:    "",
-		LatestUpdateData: map[string]interface{}{
-			"consumer-selection.previous.json": web_sblock.LatestUpdateData["consumer-selection.previous.json"],
-			"consumer-selection.next.json":     web_sblock.LatestUpdateData["consumer-selection.next.json"],
-		},
+		LatestUpdateData:   map[string]interface{}{},
 	}
-	rsf.Status.ProcessingEngines = append(rsf.Status.ProcessingEngines, web_sblock)
+	// new_prepared_sblock.LatestUpdateData = copy of desired_sblock.LatestUpdateData
+	for k, v := range desired_sblock.LatestUpdateData {
+		// LatestUpdateData: map[string]interface{}{
+		// 	"consumer-selection.previous.json": desired_sblock.LatestUpdateData["consumer-selection.previous.json"],
+		// 	"consumer-selection.next.json":     desired_sblock.LatestUpdateData["consumer-selection.next.json"],
+		// },
+		new_Overall_sblock.LatestUpdateData[k] = v
+	}
+	rsf.Status.Overall = new_Overall_sblock
+	rsf.Status.ProcessingEngines = append(rsf.Status.ProcessingEngines, desired_sblock)
 
+	//		b.2) syncSave to yaml file
+	//
 	// create rsf-yaml-file, empty for now (after rsf.checkNewRsfCanBeCreated())
 	// NOTE: this file is now empty but will latter be picked-up by rsf.i2_syncSaveToLastFile
 	// which will then write into the file the rsf struct contents :)
@@ -165,13 +206,16 @@ func (rsf *RequestStatusFlow) new_from_webConsumerSelection(web_sblock StatusBlo
 
 	//    c) call rsf.i1_runProcessingEngines() which will be launched (async) and left running asynchronously
 	RunnersOfProcEngs_wg.Add(1)
-	thisIstheFinalRunThatConcludesTheRsf := true
-	go rsf.i1_runProcessingEngines(thisIstheFinalRunThatConcludesTheRsf)
+	go rsf.i1_runProcessingEngines(procEng_indication)
 	return false, nil
 }
 
-// This function should always be called into a go-routine: "go runProcessingEngines()"
-func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcludesTheRsf bool) {
+// This function should always be called into a go-routine: "go runProcessingEngines(procEng_indication)"
+// procEng_indication must be one of:
+//			"WebConsumerSelection"  <- to signal that procengines should run *execute* mode
+//			"ProcEngAssembly"       <- to signal that procengines should run *assemble* mode
+//
+func (rsf *RequestStatusFlow) i1_runProcessingEngines(procEng_indication string) {
 	defer RunnersOfProcEngs_wg.Done()
 
 	// for _, a_ProcEngine_Binary := range procenginebinaries {
@@ -197,11 +241,20 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 		//			LatestUpdateStatus:  "Ongoing_and_locked"
 		//			LatestUpdateStatusInfo: "Running"
 		//			LatestUpdateData:
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
 		//		  		"consumer-selection.previous.json": <gz.b64> = Overall.LatestUpdateData["consumer-selection.previous.json"]
-		//					>> added by dispatcher at procEng-start
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
+		//		  		"consumer-selection.previous.json": <gz.b64> = Overall.LatestUpdateData["consumer-selection.previous.json"]
 		//		  		"consumer-selection.next.json": <gz.b64>     = Overall.LatestUpdateData["consumer-selection.next.json"]
-		//					>> added at procEng-start
 		//
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
+		// b) Execute i_procEng_binary_filepath and get stdouterr_bytes + exitcode into i_sblock
+		//	  - b.0) read  selectionPreviousJson_bytes
+		// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
+		//	  - b.1) selectionPreviousJson_bytes	is saved into 	i_procEng_selectionPreviousJson_filepath
+		//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
+		//	  - b.4) selectionPreviousJson_bytes 		is re-read from i_procEng_selectionPreviousJson_filepath (file might have been modified by engine)
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
 		// b) Execute i_procEng_binary_filepath and get stdouterr_bytes + exitcode into i_sblock
 		//	  - b.0) read both selectionPreviousJson_bytes, selectionNextJson_bytes
 		// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
@@ -214,12 +267,20 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 		// c) In the end:
 		//	  - c.1) Update Overall:
 		//			LatestUpdateData:
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
+		//		  		"consumer-selection.previous.json": <gz.b64>   (overwritten with selectionPreviousJson_bytes)
+		//		  		"consumer-selection.next.json": <gz.b64>       (overwritten with selectionPreviousJson_bytes)
+		//			      this selection.next.json is necessary for compatibility with future rsf-WebConsumerSelection that need to pick it up
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
 		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
 		//
 		//	  - c.2) Update i_sblock:
 		//			LatestUpdateStatus:    Error ($? > 0) | Completed ($?==0)
 		//			LatestUpdateStatusInfo: (stdout+stderr)
 		//			LatestUpdateData:
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
+		//		  		"consumer-selection.previous.json": <gz.b64>   (overwritten with selectionPreviousJson_bytes)
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
 		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
 		//
 		//
@@ -230,10 +291,11 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 		//			LatestUpdateStatus:  "Ongoing_and_locked"
 		//			LatestUpdateStatusInfo: "Running"
 		//			LatestUpdateData:
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
 		//		  		"consumer-selection.previous.json": <gz.b64> = Overall.LatestUpdateData["consumer-selection.previous.json"]
-		//					>> added by dispatcher at procEng-start
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
+		//		  		"consumer-selection.previous.json": <gz.b64> = Overall.LatestUpdateData["consumer-selection.previous.json"]
 		//		  		"consumer-selection.next.json": <gz.b64>     = Overall.LatestUpdateData["consumer-selection.next.json"]
-		//					>> added at procEng-start
 		t_now := time.Now()
 		i_sblock := StatusBlock{
 			Name:                   filepath.Base(i_procEng_binary_filepath),
@@ -243,7 +305,17 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 			LatestUpdateStatusInfo: "Running",
 			LatestUpdateData:       map[string]interface{}{},
 		}
-		i_sblock.LatestUpdateData["consumer-selection.previous.json"] = rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"]
+		var thisIstheFinalRunThatConcludesTheRsf bool
+		switch procEng_indication {
+		case "ProcEngAssembly":
+			i_sblock.LatestUpdateData["consumer-selection.previous.json"] = rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"]
+			thisIstheFinalRunThatConcludesTheRsf = true
+		case "WebConsumerSelection":
+			i_sblock.LatestUpdateData["consumer-selection.previous.json"] = rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"]
+			i_sblock.LatestUpdateData["consumer-selection.next.json"] = rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"]
+			thisIstheFinalRunThatConcludesTheRsf = true
+		}
+
 		i_sblock_is_the_finalSblock_of_this_run = (i == procEng_binaries_indexLastElement)
 		i_sblock_is_the_finalSblock_that_concludes_the_rsf = i_sblock_is_the_finalSblock_of_this_run && thisIstheFinalRunThatConcludesTheRsf
 		cantDo, err := rsf.i1_append_Sblock(i_sblock_is_the_finalSblock_that_concludes_the_rsf, i_sblock)
@@ -257,83 +329,178 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 		}
 		// ATP: i_sblock was appended successfully
 
-		// b) Execute i_procEng_binary_filepath and get stdouterr_bytes + exitcode into i_sblock
-		//	  - b.0) selectionPreviousJson_bytes, selectionNextJson_bytes
-		// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
-		// 		  selectionNextJson_bytes 		is read from Overall.LatestUpdateData["consumer-selection.next.json"]
-		selectionPreviousJson_bytes, err := decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
-		if err != nil {
-			log.Error("internal error:", err)
-			return
-		}
-		selectionNextJson_bytes, err := decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string))
-		if err != nil {
-			log.Error("internal error:", err)
-			return
-		}
-
-		//	  - b.1) selectionPreviousJson_bytes	is saved into 	i_procEng_selectionPreviousJson_filepath
-		//	  - b.2) selectionNextJson_bytes 		is saved into 	i_procEng_selectionNextJson_filepath
-		i_procEng_tmpSubdirpath, err := ioutil.TempDir("", "tmpsubdir")
-		if err != nil {
-			log.Error("internal error:", err)
-			return
-		}
-		defer os.RemoveAll(i_procEng_tmpSubdirpath)
-		i_procEng_selectionPreviousJson_filepath := filepath.Join(i_procEng_tmpSubdirpath, "consumer-selection.previous.json")
-		i_procEng_selectionNextJson_filepath := filepath.Join(i_procEng_tmpSubdirpath, "consumer-selection.next.json")
-		err = os.WriteFile(i_procEng_selectionPreviousJson_filepath, selectionPreviousJson_bytes, 0644)
-		if err != nil {
-			log.Error("internal error:", err)
-			return
-		}
-		err = os.WriteFile(i_procEng_selectionNextJson_filepath, selectionNextJson_bytes, 0644)
-		if err != nil {
-			log.Error("internal error:", err)
-			return
-		}
-		//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
 		var exitcode int
-		cmd := exec.Command(i_procEng_binary_filepath, i_procEng_selectionPreviousJson_filepath, i_procEng_selectionNextJson_filepath)
-		stdouterr_bytes, err := cmd.CombinedOutput()
-		if err != nil {
-			// err happened, either because of exitCode != 0 or because of another internal failure
-			if exitError, ok := err.(*exec.ExitError); ok {
-				// err happened because exitCode != 0
-				exitcode = exitError.ExitCode()
-			} else {
-				// err happened because of another internal failure
+		var stdouterr_bytes []byte
+		var selectionPreviousJson_bytes, selectionNextJson_bytes []byte
+		var selectionPreviousJson_gzB64, selectionNextJson_gzB64 string
+		if procEng_indication == "ProcEngAssembly" {
+			// ---- If procEng_indication == "ProcEngAssembly" ---------
+			// b) Execute i_procEng_binary_filepath and get stdouterr_bytes + exitcode into i_sblock
+			//	  - b.0) read  selectionPreviousJson_bytes
+			// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
+			//	  - b.1) selectionPreviousJson_bytes	is saved into 	i_procEng_selectionPreviousJson_filepath
+			//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
+			//	  - b.4) selectionPreviousJson_bytes 		is re-read from i_procEng_selectionPreviousJson_filepath (file might have been modified by engine)
+
+			//	  - b.0) read  selectionPreviousJson_bytes
+			// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
+			selectionPreviousJson_bytes, err = decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
+			if err != nil {
 				log.Error("internal error:", err)
-				// this error should propagate to sblock "Error"
-				// and a quick-but-working-but-hacky-solution is to just hardcode exitcode = 222
-				// which will make sblock become "Error"
-				exitcode = 222
 				return
 			}
-		} else {
-			// err didn't happened, so exitcode = 0
-			exitcode = 0
-		}
-		// ATP: exitcode, stdouterr_bytes are ready
 
-		//	  - b.4) selectionNextJson_bytes 		is re-read from i_procEng_selectionNextJson_filepath (file might have been modified by engine)
-		selectionNextJson_bytes, err = os.ReadFile(i_procEng_selectionNextJson_filepath)
-		if err != nil {
-			log.Error("internal error:", err)
-			return
+			//	  - b.1) selectionPreviousJson_bytes	is saved into 	i_procEng_selectionPreviousJson_filepath
+			i_procEng_tmpSubdirpath, err := ioutil.TempDir("", "tmpsubdir")
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			defer os.RemoveAll(i_procEng_tmpSubdirpath)
+			i_procEng_selectionPreviousJson_filepath := filepath.Join(i_procEng_tmpSubdirpath, "consumer-selection.previous.json")
+			err = os.WriteFile(i_procEng_selectionPreviousJson_filepath, selectionPreviousJson_bytes, 0644)
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
+			arg1 := "assemble"
+			cmd := exec.Command(i_procEng_binary_filepath, arg1, i_procEng_selectionPreviousJson_filepath)
+			stdouterr_bytes, err = cmd.CombinedOutput()
+			if err != nil {
+				// err happened, either because of exitCode != 0 or because of another internal failure
+				if exitError, ok := err.(*exec.ExitError); ok {
+					// err happened because exitCode != 0
+					exitcode = exitError.ExitCode()
+				} else {
+					// err happened because of another internal failure
+					log.Error("internal error:", err)
+					// this error should propagate to sblock "Error"
+					// and a quick-but-working-but-hacky-solution is to just hardcode exitcode = 222
+					// which will make sblock become "Error"
+					exitcode = 222
+					return
+				}
+			} else {
+				// err didn't happened, so exitcode = 0
+				exitcode = 0
+			}
+			// ATP: exitcode, stdouterr_bytes are ready
+
+			//	  - b.4) selectionPreviousJson_bytes 		is re-read from i_procEng_selectionPreviousJson_filepath (file might have been modified by engine)
+			selectionPreviousJson_bytes, err = os.ReadFile(i_procEng_selectionPreviousJson_filepath)
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+
+		} else if procEng_indication == "WebConsumerSelection" {
+			// ---- If procEng_indication == "WebConsumerSelection" ---------
+			// b) Execute i_procEng_binary_filepath and get stdouterr_bytes + exitcode into i_sblock
+			//	  - b.0) read both selectionPreviousJson_bytes, selectionNextJson_bytes
+			// 		  selectionPreviousJson_bytes 	is read from Overall.LatestUpdateData["consumer-selection.previous.json"]
+			// 		  selectionNextJson_bytes 		is read from Overall.LatestUpdateData["consumer-selection.next.json"]
+			//	  - b.1) selectionPreviousJson_bytes	is saved into 	i_procEng_selectionPreviousJson_filepath
+			//	  - b.2) selectionNextJson_bytes 		is saved into 	i_procEng_selectionNextJson_filepath
+			//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
+			//	  - b.4) selectionNextJson_bytes 		is re-read from i_procEng_selectionNextJson_filepath (file might have been modified by engine)
+			selectionPreviousJson_bytes, err = decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.previous.json"].(string))
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			selectionNextJson_bytes, err = decode_gzB64_to_bytes(rsf.Status.Overall.LatestUpdateData["consumer-selection.next.json"].(string))
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+
+			//	  - b.1) selectionPreviousJson_bytes	is saved into 	i_procEng_selectionPreviousJson_filepath
+			//	  - b.2) selectionNextJson_bytes 		is saved into 	i_procEng_selectionNextJson_filepath
+			i_procEng_tmpSubdirpath, err := ioutil.TempDir("", "tmpsubdir")
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			defer os.RemoveAll(i_procEng_tmpSubdirpath)
+			i_procEng_selectionPreviousJson_filepath := filepath.Join(i_procEng_tmpSubdirpath, "consumer-selection.previous.json")
+			i_procEng_selectionNextJson_filepath := filepath.Join(i_procEng_tmpSubdirpath, "consumer-selection.next.json")
+			err = os.WriteFile(i_procEng_selectionPreviousJson_filepath, selectionPreviousJson_bytes, 0644)
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			err = os.WriteFile(i_procEng_selectionNextJson_filepath, selectionNextJson_bytes, 0644)
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
+			cmd := exec.Command(i_procEng_binary_filepath, i_procEng_selectionPreviousJson_filepath, i_procEng_selectionNextJson_filepath)
+			stdouterr_bytes, err = cmd.CombinedOutput()
+			if err != nil {
+				// err happened, either because of exitCode != 0 or because of another internal failure
+				if exitError, ok := err.(*exec.ExitError); ok {
+					// err happened because exitCode != 0
+					exitcode = exitError.ExitCode()
+				} else {
+					// err happened because of another internal failure
+					log.Error("internal error:", err)
+					// this error should propagate to sblock "Error"
+					// and a quick-but-working-but-hacky-solution is to just hardcode exitcode = 222
+					// which will make sblock become "Error"
+					exitcode = 222
+					return
+				}
+			} else {
+				// err didn't happened, so exitcode = 0
+				exitcode = 0
+			}
+			// ATP: exitcode, stdouterr_bytes are ready
+
+			//	  - b.4) selectionNextJson_bytes 		is re-read from i_procEng_selectionNextJson_filepath (file might have been modified by engine)
+			selectionNextJson_bytes, err = os.ReadFile(i_procEng_selectionNextJson_filepath)
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
 		}
 
 		// c) In the end:
 		//	  - c.1) Update Overall:
 		//			LatestUpdateData:
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
+		//		  		"consumer-selection.previous.json": <gz.b64>   (overwritten with selectionPreviousJson_bytes)
+		//		  		"consumer-selection.next.json": <gz.b64>       (overwritten with selectionPreviousJson_bytes)
+		//			      this selection.next.json is necessary for compatibility with future rsf-WebConsumerSelection that need to pick it up
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
 		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
-		new_LatestUpdateData := make(map[string]interface{})
-		selectionNextJson_gzB64, err := encode_bytes_to_gzB64(selectionNextJson_bytes)
-		if err != nil {
-			log.Error("internal error:", err)
-			return
+		//
+		//	  - c.2) Update i_sblock:
+		//			LatestUpdateStatus:    Error ($? > 0) | Completed ($?==0)
+		//			LatestUpdateStatusInfo: (stdout+stderr)
+		//			LatestUpdateData:
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
+		//		  		"consumer-selection.previous.json": <gz.b64>   (overwritten with selectionPreviousJson_bytes)
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
+		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
+		new_LatestUpdateData := map[string]interface{}{}
+		if procEng_indication == "ProcEngAssembly" {
+			selectionPreviousJson_gzB64, err = encode_bytes_to_gzB64(selectionPreviousJson_bytes)
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			new_LatestUpdateData["consumer-selection.previous.json"] = selectionPreviousJson_gzB64
+			new_LatestUpdateData["consumer-selection.next.json"] = selectionPreviousJson_gzB64
+		} else if procEng_indication == "WebConsumerSelection" {
+			selectionNextJson_gzB64, err = encode_bytes_to_gzB64(selectionNextJson_bytes)
+			if err != nil {
+				log.Error("internal error:", err)
+				return
+			}
+			new_LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
 		}
-		new_LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
 		cantDo, err = rsf.i1_update_Overall_LatestUpdateData(new_LatestUpdateData)
 		if err != nil {
 			log.Error("internal error:", err)
@@ -348,7 +515,10 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 		//			LatestUpdateStatus:    Error ($? > 0) | Completed ($?==0)
 		//			LatestUpdateStatusInfo: (stdout+stderr)
 		//			LatestUpdateData:
-		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes
+		// ---- If procEng_indication == "ProcEngAssembly" ---------
+		//		  		"consumer-selection.previous.json": <gz.b64>   (overwritten with selectionPreviousJson_bytes)
+		// ---- If procEng_indication == "WebConsumerSelection" ---------
+		//		  		"consumer-selection.next.json": <gz.b64>   (overwritten with selectionNextJson_bytes)
 		i_sblock.LatestUpdateTime = time.Now()
 		if exitcode == 0 {
 			i_sblock.LatestUpdateStatus = "Completed"
@@ -358,8 +528,11 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(thisIstheFinalRunThatConcl
 		}
 
 		i_sblock.LatestUpdateStatusInfo = string(stdouterr_bytes)
-		i_sblock.LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
-
+		if procEng_indication == "ProcEngAssembly" {
+			i_sblock.LatestUpdateData["consumer-selection.previous.json"] = selectionPreviousJson_gzB64
+		} else if procEng_indication == "WebConsumerSelection" {
+			i_sblock.LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
+		}
 		cantDo, err = rsf.i1_update_LastSblock(i_sblock_is_the_finalSblock_that_concludes_the_rsf, i_sblock)
 		if err != nil {
 			log.Error("internal error:", err)
@@ -417,7 +590,7 @@ func (rsf *RequestStatusFlow) i1_syncLoadFromLastFile() (err error) {
 }
 
 func (rsf *RequestStatusFlow) i1_getCollection() (col *Collection, err error) {
-	col, err = GetCollection(rsf.Collection)
+	col, err = CollectionGet(rsf.Collection)
 	if err != nil {
 		return nil, err
 	}
@@ -457,17 +630,6 @@ func (rsf *RequestStatusFlow) i1_update_LastSblock(new_sblock_is_finalSblock boo
 // update rsf.Status.Overall.LatestUpdateData so it gets merged with new_LatestUpdateData
 // and syncSave rsf into file
 //
-// Example usage:
-//
-//   var new_LatestUpdateData map[string]interface{}
-//   new_LatestUpdateData["consumer-selection.next.json"] = selectionNextJson_gzB64
-//   cantDo, err = rsf.i1_update_Overall_LatestUpdateData(new_LatestUpdateData)
-//   if err != nil {
-//   	 return ...
-//   }
-//   if cantDo == true {
-//   	 return ...
-//   }
 func (rsf *RequestStatusFlow) i1_update_Overall_LatestUpdateData(new_LatestUpdateData map[string]interface{}) (cantDo bool, err error) {
 	// Assure rsf struct is sync'ed from rsf-file
 	err = rsf.i1_syncLoadFromLastFile()

@@ -1,12 +1,16 @@
 package collection
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"time"
+	"vendingMaxine/src/webserver/globals"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Collection struct {
@@ -98,7 +102,8 @@ func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]string)
 			"consumer-selection.next.json":     consumerSelectionNextJson_gzB64,
 		},
 	}
-	cantDo, err = rsf.new_from_webConsumerSelection(web_sblock)
+	procEng_indication := "WebConsumerSelection"
+	cantDo, err = rsf.new_from_sblock(web_sblock, procEng_indication)
 	if err != nil {
 		return true, nil, err
 	}
@@ -106,6 +111,141 @@ func (c *Collection) NewRsf_from_WebconsumerSelection(webdata map[string]string)
 		return true, nil, nil
 	}
 	return false, rsf, nil
+}
+
+// Tries to create a new RequestStatusFlow (rsf) , to run ProcEngines in mode Assembly  :)
+//
+// data must have following keys-values:
+//		--none--
+//
+// An implicit part of rsf creation, is that rsf.runProcessingEngines() (async) will be launched asynchronously
+// (but it will not wait for runProcessingEngines() to complete, that is left running async)
+// If it cant do it =>  returns "cantDo == true"
+func (c *Collection) NewRsf_for_ProcEngAssembly(data map[string]string) (cantDo bool, rsf *RequestStatusFlow, err error) {
+	// This function
+	//  a) creates an empty rsf, for latter calling  rsf.new_from_webConsumerSelection(desired_sblock)
+	//  b) prepares values and fills desired_sblock:
+	//   b.1) Read consumerSelectionPreviousJson_string
+	//   b.2) Read productsSchemaJson_string
+	//   b.3) fills desired_sblock:
+	// 		Name:                   "ProcEngAssemblyStart",
+	// 		StartTime:              t_now,
+	// 		LatestUpdateTime:       t_now,
+	// 		LatestUpdateStatus:     "Completed",
+	// 		LatestUpdateStatusInfo: "",
+	// 		LatestUpdateUml:        "",
+	// 		LatestUpdateData: map[string]interface{}{
+	// 			"products.schema.json":             productsSchemaJson_gzB64,
+	// 			"consumer-selection.previous.json": consumerSelectionPreviousJson_gzB64,
+	// 			"consumer-selection.next.json":     consumerSelectionPreviousJson_gzB64,
+	//
+	// c) calls rsf.new_from_webConsumerSelection(desired_sblock)
+
+	//  a) creates an empty rsf, for latter calling  rsf.new_from_webConsumerSelection(desired_sblock)
+	rsf = &RequestStatusFlow{
+		Collection: c.Name,
+	}
+	t_now := time.Now()
+
+	//  b) prepares values and fills desired_sblock:
+	//   b.1) Read consumerSelectionPreviousJson_string
+	//   b.2) Read productsSchemaJson_string
+	var consumerSelectionPreviousJson_string string
+	var productsSchemaJson_string string
+	cantDo, consumerSelectionPreviousJson_string, productsSchemaJson_string, err = c.Get_selectionPrevious_and_prodSchema_from_collection()
+	if err != nil {
+		return false, nil, err
+	} else if cantDo {
+		return true, nil, nil
+	}
+	productsSchemaJson_gzB64, err := encode_bytes_to_gzB64([]byte(productsSchemaJson_string))
+	if err != nil {
+		return false, nil, err
+	}
+	consumerSelectionPreviousJson_gzB64, err := encode_bytes_to_gzB64([]byte(consumerSelectionPreviousJson_string))
+	if err != nil {
+		return false, nil, err
+	}
+
+	//   b.3) fills desired_sblock:
+	// 		Name:                   "ProcEngAssemblyStart",
+	// 		StartTime:              t_now,
+	// 		LatestUpdateTime:       t_now,
+	// 		LatestUpdateStatus:     "Completed",
+	// 		LatestUpdateStatusInfo: "",
+	// 		LatestUpdateUml:        "",
+	// 		LatestUpdateData: map[string]interface{}{
+	// 		LatestUpdateData: map[string]interface{}{
+	// 			"products.schema.json":             productsSchemaJson_gzB64,
+	// 			"consumer-selection.previous.json": consumerSelectionPreviousJson_gzB64,
+	// 			"consumer-selection.next.json":     consumerSelectionPreviousJson_gzB64,
+	desired_sblock := StatusBlock{
+		Name:                   "ProcEngAssemblyStart",
+		StartTime:              t_now,
+		LatestUpdateTime:       t_now,
+		LatestUpdateStatus:     "Completed",
+		LatestUpdateStatusInfo: "",
+		LatestUpdateUml:        "",
+		LatestUpdateData: map[string]interface{}{
+			"products.schema.json":             productsSchemaJson_gzB64,
+			"consumer-selection.previous.json": consumerSelectionPreviousJson_gzB64,
+			"consumer-selection.next.json":     consumerSelectionPreviousJson_gzB64,
+		},
+	}
+	log.Info(fmt.Sprintf("[Collection %s] Launching ProcEng Assembly ", c.Name))
+
+	// c) calls rsf.new_from_sblock(desired_sblock)
+	procEng_indication := "ProcEngAssembly"
+	cantDo, err = rsf.new_from_sblock(desired_sblock, procEng_indication)
+	if err != nil {
+		return true, nil, err
+	}
+	if cantDo {
+		return true, nil, nil
+	}
+	return false, rsf, nil
+}
+
+// This function will:
+//	 a) Check if c.NewRsf_canBeCreated
+//   b) Read consumerSelectionPreviousJson_string from c.LastRsf
+//   c) Read productsSchemaJson_string from file PRODUCT_SCHEMA_JSON_FILEPATH
+//
+// 		NOTE: if last_rsf does not exist (ex: new collection) then err != nil
+// 		and new collectino will never work
+// 		todo: a newly-created-collection might never work as it might not have a last_rsf for initial bootstraping
+func (c *Collection) Get_selectionPrevious_and_prodSchema_from_collection() (cantDo bool, consumerSelectionPreviousJson_string string, productsSchemaJson_string string, err error) {
+
+	//	 a) Check if c.NewRsf_canBeCreated
+	yes, err := c.NewRsf_canBeCreated()
+	if err != nil {
+		return false, "", "", err
+	}
+	if !yes {
+		cantDo = true
+		return cantDo, "", "", nil
+	}
+
+	//   b) Read consumerSelectionPreviousJson_string from c.LastRsf
+	last_rsf, err := c.LastRsf()
+	// NOTE: if lasT_rsf does not exist (ex: new collection) then err != nil
+	// and new collectino will never work
+	// todo: a newly-created-collection will never work as it does not have a last_rsf for bootstraping
+	if err != nil {
+		return false, "", "", err
+	}
+	consumerSelectionPreviousJson_string, err = last_rsf.Get_OverallLatestUpdateData_Decoded("consumer-selection.next.json")
+	if err != nil {
+		return false, "", "", err
+	}
+
+	//   c) Read productsSchemaJson_string from file PRODUCT_SCHEMA_JSON_FILEPATH
+	productsSchemaJson_bytes, err := os.ReadFile(globals.PRODUCT_SCHEMA_JSON_FILEPATH)
+	if err != nil {
+		return false, "", "", err
+	}
+	productsSchemaJson_string = string(productsSchemaJson_bytes)
+	return false, consumerSelectionPreviousJson_string, productsSchemaJson_string, nil
 }
 
 // Calculates path-to-dir of collection.

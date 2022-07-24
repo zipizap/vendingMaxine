@@ -14,7 +14,7 @@ func CollectionsGetHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// session := sessions.Default(c)
 		// user := session.Get(globals.Userkey)
-		collections, err := collection.GetAllCollections()
+		collections, err := collection.CollectionsAllGet()
 		if err != nil {
 			c.HTML(http.StatusInternalServerError, "error.tmpl", gin.H{"error": err.Error()})
 			return
