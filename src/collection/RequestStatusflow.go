@@ -436,7 +436,8 @@ func (rsf *RequestStatusFlow) i1_runProcessingEngines(procEng_indication string)
 				return
 			}
 			//	  - b.3) i_procEng_binary_filepath 	is executed and we get stdouterr_bytes + exitcode
-			cmd := exec.Command(i_procEng_binary_filepath, i_procEng_selectionPreviousJson_filepath, i_procEng_selectionNextJson_filepath)
+			arg1 := "execute"
+			cmd := exec.Command(i_procEng_binary_filepath, arg1, i_procEng_selectionPreviousJson_filepath, i_procEng_selectionNextJson_filepath)
 			stdouterr_bytes, err = cmd.CombinedOutput()
 			if err != nil {
 				// err happened, either because of exitCode != 0 or because of another internal failure
