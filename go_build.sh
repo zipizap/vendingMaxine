@@ -13,7 +13,8 @@ set -o nounset
 
 cd "${__dir}"
 export GO111MODULES=on
-CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' .
-#GOOS=windows go build .
+APPNAME=$(basename $PWD)
+CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o ${APPNAME} .
+#GOOS=windows go build . -o ${APPNAME}.exe
 
 ls -lrth

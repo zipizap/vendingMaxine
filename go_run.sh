@@ -13,6 +13,7 @@ set -o nounset
 
 cd "${__dir}"
 export GO111MODULES=on
+[[ -r local_env.source ]] && source local_env.source
 exec go run . ${@}
 
 

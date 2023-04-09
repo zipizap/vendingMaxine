@@ -11,21 +11,7 @@ set -o nounset
 #set -o xtrace
 
 cd "${__dir}"
+APPNAME=$(basename $PWD)
+rm -rfv go.mod go.sum vendor ./"${APPNAME}"  || true
 
-export GO111MODULES=on
-
-if ! [ -r go.mod ]
-then
-  #published in internet would be: go mod init github.com/zipizap/myMod
-  MY_UNIQUE_MODULE_NAME=$(basename $PWD)
-  go mod init $MY_UNIQUE_MODULE_NAME
-fi
-
-# updates dependencies to latest
-go get -u ./... 
-# dont updates dependencies to latest
-#go get /... 
-
-if [[ "${1:-}" == "vendor" ]]; then
-  go mod vendor
-fi
+ls -l
