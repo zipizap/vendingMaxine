@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
-	"vd-alpha/packages/xstate"
+	"vendingMaxine/packages/xstate"
 
 	"gorm.io/gorm"
 )
@@ -15,6 +15,9 @@ func initProcessingEngineRunner(processingEnginesDirpath string) {
 	peDirpath = processingEnginesDirpath
 }
 
+// State transitions:
+//   - State string:   "Pending" > "Running" > "Completed" or "Failed"
+//   - Error() error:  set when State=="Failed"
 type ProcessingEngineRunner struct {
 	gorm.Model
 	ColSelectionID    uint
@@ -23,18 +26,19 @@ type ProcessingEngineRunner struct {
 	xstate.XState `gorm:"embedded"`
 }
 
-// newProcessingEngineRunner creates a new object o and
-//     - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
-//       o.Save(o); return nil
-//     }
-//     - set the new object fields from its corresponding arguments
-//   Should check all possible errors.
-//   If inside this method, there is any error at any step, then:
-//   + call o.StateChange("Failed", error) and return the error
-//   If method is executed without errors, then:
-//   * call o.StateChange("Pending", nil)
-//   * return the created object o
 func newProcessingEngineRunner() (*ProcessingEngineRunner, error) {
+	// newProcessingEngineRunner creates a new object o and
+	//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
+	//     o.Save(o); return nil
+	//     }
+	//   - set the new object fields from its corresponding arguments
+	//     Should check all possible errors.
+	//     If inside this method, there is any error at any step, then:
+	//   - call o.StateChange("Failed", error) and return the error
+	//     If method is executed without errors, then:
+	//   - call o.StateChange("Pending", nil)
+	//   - return the created object o
+
 	o := &ProcessingEngineRunner{}
 	o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
 		o.save(o)
@@ -48,16 +52,18 @@ func newProcessingEngineRunner() (*ProcessingEngineRunner, error) {
 	return o, nil
 }
 
-// run lists all linux executable files found in peDirpath in lexicographical descending order,
-//   and for each binPath found:
-//     - create a corresponding ProcessingEngine instance pe,err=NewProcessingEngine(binPath, []string{})
-//     - append pe to o.ProcessingEngines slice
-//     - call pe.RegisterObserverCallback( to call o.recalculateStateAndError(...) )
-//     - call err = pe.run()
-//   Should check all possible errors.
-//   If inside this method, there is any error at any step, then:
-//   + call o.StateChange("Failed", error) and return the error
 func (per *ProcessingEngineRunner) run() error {
+	// run lists all linux executable files found in peDirpath in lexicographical descending order,
+	//
+	//	and for each binPath found:
+	//	  - create a corresponding ProcessingEngine instance pe,err=NewProcessingEngine(binPath, []string{})
+	//	  - append pe to o.ProcessingEngines slice
+	//	  - call pe.RegisterObserverCallback( to call o.recalculateStateAndError(...) )
+	//	  - call err = pe.run()
+	//	Should check all possible errors.
+	//	If inside this method, there is any error at any step, then:
+	//	+ call o.StateChange("Failed", error) and return the error
+
 	err := per.reload(per) // reload object from db
 	if err != nil {
 		return err
@@ -79,7 +85,7 @@ func (per *ProcessingEngineRunner) run() error {
 		}
 
 		sort.Slice(binPaths, func(i, j int) bool {
-			return binPaths[i] > binPaths[j]
+			return binPaths[i] < binPaths[j]
 		})
 	}
 
@@ -91,10 +97,14 @@ func (per *ProcessingEngineRunner) run() error {
 			return err
 		}
 		per.ProcessingEngines = append(per.ProcessingEngines, pe)
+		err = per.save(per)
+		if err != nil {
+			return err
+		}
 		// ObserverCallback to run per.RecalculateStateAndError()
 		pe.RegisterObserverCallback(
 			func(oldState string, oldError error, xstate *xstate.XState) error {
-				per.recalculateStateAndError(pe)
+				per._recalculateStateAndError(pe)
 				return nil
 			},
 		)
@@ -107,15 +117,16 @@ func (per *ProcessingEngineRunner) run() error {
 	return nil
 }
 
-// recalculateStateAndError recalculates per.State and per.Error from pe.State and pe.Error
-//   From the pe := per.ProcessingEngine[-1], recalculate per.State and per.Error
-//     pe.State/Error                 =>  per.State/Error
-//     "Pending"/nil                  =>  "Pending"/nil
-//     "Running"/nil                  =>  "Running"/nil
-//     "Completed"/nil                =>  "Completed"/nil
-//     "Failed"/error                 =>  "Failed"/error
-//   Use per.StateChange(newState, newError)
-func (per *ProcessingEngineRunner) recalculateStateAndError(pe *ProcessingEngine) {
+// _recalculateStateAndError recalculates per.State and per.Error from pe.State and pe.Error
+//
+//	From the pe := per.ProcessingEngine[-1], recalculate per.State and per.Error
+//	  pe.State/Error                 =>  per.State/Error
+//	  "Pending"/nil                  =>  "Pending"/nil
+//	  "Running"/nil                  =>  "Running"/nil
+//	  "Completed"/nil                =>  "Completed"/nil
+//	  "Failed"/error                 =>  "Failed"/error
+//	Use per.StateChange(newState, newError)
+func (per *ProcessingEngineRunner) _recalculateStateAndError(pe *ProcessingEngine) {
 	_ = per.reload(per) // reload object from db
 	// skip if pe != per.ProcessingEngine[-1]
 	if pe.ID != per.ProcessingEngines[len(per.ProcessingEngines)-1].ID {

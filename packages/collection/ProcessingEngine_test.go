@@ -30,7 +30,7 @@ func prepForTestProcessingEngine(t *testing.T) {
 func TestNewProcessingEngine(t *testing.T) {
 	prepForTestProcessingEngine(t)
 
-	binPath := "processingEngines/0100.echo_args_env.sh"
+	binPath := "processingEngines/0200.echo_args_env.sh"
 	runArgs := []string{"arg1", "arg2"}
 
 	pe, err := newProcessingEngine(binPath, runArgs)
@@ -43,15 +43,15 @@ func TestNewProcessingEngine(t *testing.T) {
 		t.Errorf("Expected BinPath to be %s, but got %s", binPath, pe.BinPath)
 	}
 
-	if len(pe.runArgs()) != len(runArgs) {
-		t.Errorf("Expected RunArgs to have length %d, but got %d", len(runArgs), len(pe.runArgs()))
+	if len(pe._runArgs()) != len(runArgs) {
+		t.Errorf("Expected RunArgs to have length %d, but got %d", len(runArgs), len(pe._runArgs()))
 	}
 }
 
 func TestProcessingEngine_Run(t *testing.T) {
 	prepForTestProcessingEngine(t)
 
-	binPath := "processingEngines/0100.echo_args_env.sh"
+	binPath := "processingEngines/0200.echo_args_env.sh"
 	runArgs := []string{"arg1", "arg2"}
 
 	pe, err := newProcessingEngine(binPath, runArgs)
@@ -88,7 +88,7 @@ func TestProcessingEngine_Run(t *testing.T) {
 
 func TestProcessingEngine_Run_Failed(t *testing.T) {
 	prepForTestProcessingEngine(t)
-	binPath := "processingEngines/0100.echo_args_env.sh"
+	binPath := "processingEngines/0200.echo_args_env.sh"
 	binPath = "nonexistentfile"
 	runArgs := []string{"arg1", "arg2"}
 

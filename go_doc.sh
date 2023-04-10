@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-( sleep 3;  xdg-open 'http://localhost:6060/pkg/vd-alpha/?m=all' &>/dev/null & )
+( sleep 3;  xdg-open 'http://localhost:6060/pkg/vendingMaxine/?m=all' &>/dev/null & )
 godoc -http=localhost:6060 
+
+#go doc -u -all collection.ColSelection | bat -l go
 
 

@@ -2,11 +2,14 @@ package collection
 
 import (
 	"fmt"
-	"vd-alpha/packages/xstate"
+	"vendingMaxine/packages/xstate"
 
 	"gorm.io/gorm"
 )
 
+// State transitions:
+//   - State string:   "Pending" > "Running" > "Completed" or "Failed"
+//   - Error() error:  set when State=="Failed"
 type ColSelection struct {
 	gorm.Model
 	CollectionID           uint    // relationship 1Collection-to-manyColSelections
@@ -18,24 +21,23 @@ type ColSelection struct {
 	ProcessingEngineRunner *ProcessingEngineRunner
 	dbMethods
 	xstate.XState `gorm:"embedded"`
-	// State string                  // "Pending" > "Running" > "Completed" or "Failed"
-	// Error error                   // set when State=="Failed"
 }
 
-// newColSelection method should create a new object o and
-//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
-//     o.Save(o); return nil
-//     }
-//   - set the new object fields from its corresponding arguments
-//   - check all possible errors
-//     If inside this method, there is any error at any step, then:
-//   - call o.StateChange("Failed", error) and return the error
-//     If method is executed without errors, then:
-//   - call o.StateChange("Pending", nil)
-//   - return the created object o
 func newColSelection(schema *Schema, jsonInput string, jsonOutput string, requestingUser string) (*ColSelection, error) {
+	// newColSelection method should create a new object o and
+	//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
+	//     o.Save(o); return nil
+	//     }
+	//   - set the new object fields from its corresponding arguments
+	//   - check all possible errors
+	//     If inside this method, there is any error at any step, then:
+	//   - call o.StateChange("Failed", error) and return the error
+	//     If method is executed without errors, then:
+	//   - call o.StateChange("Pending", nil)
+	//   - return the created object o
+
 	// validate schema.ID == SchemaLatest().ID
-	schemaLatest, err := SchemaLoadLatest()
+	schemaLatest, err := schemaLoadLatest()
 	if err != nil {
 		return nil, err
 	}
@@ -64,20 +66,22 @@ func newColSelection(schema *Schema, jsonInput string, jsonOutput string, reques
 	return o, nil
 }
 
-// run method should
-//   - set o.ProcessingEngineRunner,err=NewProcessingEngineRunner()
-//   - set o.ProcessingEngineRunner.RegisterObserverCallback( to call o.recalculateStateAndError(...) )
-//   - call err = o.ProcessingEngineRunner.run()
-//   - check all possible errors
-//     If inside this method, there is any error at any step, then:
-//   - call o.StateChange("Failed", error) and return the error
 func (csel *ColSelection) run() error {
+	// run method should
+	//   - set o.ProcessingEngineRunner,err=NewProcessingEngineRunner()
+	//   - set o.ProcessingEngineRunner.RegisterObserverCallback( to call o.recalculateStateAndError(...) )
+	//   - call err = o.ProcessingEngineRunner.run()
+	//   - check all possible errors
+	//     If inside this method, there is any error at any step, then:
+	//   - call o.StateChange("Failed", error) and return the error
+
 	err := csel.reload(csel) // reload object from db
 	if err != nil {
 		return err
 	}
 	per, err := newProcessingEngineRunner()
 	csel.ProcessingEngineRunner = per
+	csel.save(csel)
 	if err != nil {
 		csel.StateChange("Failed", err)
 		return err
@@ -85,7 +89,7 @@ func (csel *ColSelection) run() error {
 	// ObserverCallback to run csel.RecalculateStateAndError()
 	per.RegisterObserverCallback(
 		func(oldState string, oldError error, xstate *xstate.XState) error {
-			csel.recalculateStateAndError(per)
+			csel._recalculateStateAndError(per)
 			return nil
 		})
 	err = per.run()
@@ -96,7 +100,7 @@ func (csel *ColSelection) run() error {
 	return nil
 }
 
-// recalculateStateAndError method: from the per := csel.ProcessingEngineRunner, recalculate csel.State and csel.Error
+// _recalculateStateAndError method: from the per := csel.ProcessingEngineRunner, recalculate csel.State and csel.Error
 //
 //	  per.State/Error                 =>  csel.State/Error
 //	  "Pending"/nil                  =>  "Pending"/nil
@@ -104,7 +108,7 @@ func (csel *ColSelection) run() error {
 //	  "Completed"/nil                =>  "Completed"/nil
 //	  "Failed"/error                 =>  "Failed"/error
 //	Use csel.StateChange(newState, newError)
-func (csel *ColSelection) recalculateStateAndError(per *ProcessingEngineRunner) {
+func (csel *ColSelection) _recalculateStateAndError(per *ProcessingEngineRunner) {
 	_ = csel.reload(csel) // reload object from db
 
 	// skip if per != csel.ProcessingEngineRunner
@@ -126,13 +130,13 @@ func (csel *ColSelection) recalculateStateAndError(per *ProcessingEngineRunner) 
 	}
 }
 
-func colSelectionCreateInitial() (*ColSelection, error) {
-	latestSchema, err := SchemaLoadLatest()
+func _colSelectionCreateInitial() (*ColSelection, error) {
+	latestSchema, err := schemaLoadLatest()
 	if err != nil {
 		return nil, err
 	}
-	initialJsonInput := ""
-	initialJsonOutput := ""
+	initialJsonInput := "{}"
+	initialJsonOutput := "{}"
 	initialRequestingUser := "init"
 	initialColSel, err := newColSelection(latestSchema, initialJsonInput, initialJsonOutput, initialRequestingUser)
 	if err != nil {

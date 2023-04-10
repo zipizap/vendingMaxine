@@ -6,7 +6,7 @@ import "fmt"
 ======= USE IT LIKE THIS ========
 
 import (
-  "vd-alpha/packages/xstate"
+  "vendingMaxine/packages/xstate"
 )
 
 // 1. embed into struct
@@ -62,6 +62,8 @@ func (x *XState) StateChange(nextState string, nextError error) error {
 	x.State = nextState
 	if nextError != nil {
 		x.ErrorString = nextError.Error()
+	} else {
+		x.ErrorString = ""
 	}
 	for _, a_callback := range x.observerCallbacks {
 		err := a_callback(oldState, oldError, x)

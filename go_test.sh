@@ -2,5 +2,5 @@
 
 
 rm -v tests/sqlite.db || true
-go test -v "vd-alpha/packages/collection"
+go test -v "vendingMaxine/packages/collection"
 

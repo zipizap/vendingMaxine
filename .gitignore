@@ -1,2 +1,4 @@
 vendor/*
 QUESTION.*
+local_env.source
+**/sqlite.db

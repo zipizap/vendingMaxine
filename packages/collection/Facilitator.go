@@ -43,20 +43,20 @@ func (f *Facilitator) CollectionsOverview() (colsInfo []map[string]string, err e
 // CollectionEditStart returns the necessary data to start-editing a collection
 func (f *Facilitator) CollectionEditStart(colName string) (schemaLatest *Schema, jsonInput string, err error) {
 	var col *Collection
-	col, err = CollectionLoad(colName)
+	col, err = collectionLoad(colName)
 	if err != nil {
 		return nil, "", err
 	}
-	if err = col.canBeUpdated(); err != nil {
+	if err = col._canBeUpdated(); err != nil {
 		return nil, "", err
 	}
 
-	schemaLatest, err = SchemaLoadLatest()
+	schemaLatest, err = schemaLoadLatest()
 	if err != nil {
 		return nil, "", err
 	}
 
-	cselLatest, err := col.ColSelectionLatest()
+	cselLatest, err := col.colSelectionLatest()
 	if err != nil {
 		return nil, "", err
 	}
@@ -74,14 +74,14 @@ func (f *Facilitator) CollectionEditStart(colName string) (schemaLatest *Schema,
 
 // CollectionEditSave stores data after an edit-save, to update the collection
 func (f *Facilitator) CollectionEditSave(colName string, schema *Schema, jsonInput string, jsonOutput string, requestingUser string) error {
-	col, err := CollectionLoad(colName)
+	col, err := collectionLoad(colName)
 	if err != nil {
 		return err
 	}
-	if err = col.canBeUpdated(); err != nil {
+	if err = col._canBeUpdated(); err != nil {
 		return err
 	}
-	err = col.AppendAndRunColSelection(schema, jsonInput, jsonOutput, requestingUser)
+	err = col.appendAndRunColSelection(schema, jsonInput, jsonOutput, requestingUser)
 	if err != nil {
 		return err
 	}
@@ -92,6 +92,6 @@ func (f *Facilitator) CollectionEditSave(colName string, schema *Schema, jsonInp
 //
 //	`name` must be compliant with DNS label standard as defined in RFC 1123 (like pod label-names, see https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names).
 func (f *Facilitator) CollectionNew(colName string) error {
-	_, err := CollectionNew(colName)
+	_, err := collectionNew(colName)
 	return err
 }

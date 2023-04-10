@@ -1,13 +1,11 @@
 package main
 
 import (
-	"vd-alpha/packages/collection"
-	"vd-alpha/packages/config"
+	"vendingMaxine/packages/collection"
+	"vendingMaxine/packages/config"
 
 	"github.com/spf13/viper"
 )
-
-// . "vd-alpha/packages/xstate"
 
 func init() {
 	/*
@@ -50,7 +48,8 @@ func init() {
 	processingEnginesDirpaths := viper.GetString("processingengines.dirpath")
 	dbFilepath := viper.GetString("db.filepath")
 
-	collection.InitSetup(dbFilepath, processingEnginesDirpaths)
+	f, _ := collection.NewFacilitator()
+	f.InitSetup(dbFilepath, processingEnginesDirpaths)
 }
 
 func main() {

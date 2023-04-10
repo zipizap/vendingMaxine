@@ -6,11 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"time"
-	"vd-alpha/packages/xstate"
+	"vendingMaxine/packages/xstate"
 
 	"gorm.io/gorm"
 )
 
+// State transitions:
+//   - State string:   "Pending" > "Running" > "Completed" or "Failed"
+//   - Error() error:  set when State=="Failed"
 type ProcessingEngine struct {
 	gorm.Model
 	ProcessingEngineRunnerID uint
@@ -28,22 +31,21 @@ type ProcessingEngine struct {
 	RunExitcode              int
 	dbMethods
 	xstate.XState `gorm:"embedded"`
-	// State string // "Pending" > "Running" > "Completed" or "Failed"
-	// Error error                   // set when State=="Failed"
 }
 
-// newProcessingEngine method should create a new object o and
-//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
-//     o.Save(o)
-//     º
-//   - set the new object fields from its corresponding arguments
-//     Should check all possible errors.
-//     If inside this method, there is any error at any step, then:
-//   - call o.StateChange("Failed", error) and return the error
-//     If method is executed without errors, then:
-//   - call o.StateChange("Pending", nil)
-//   - return the created object o
 func newProcessingEngine(binPath string, runArgs []string) (*ProcessingEngine, error) {
+	// newProcessingEngine method should create a new object o and
+	//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
+	//     o.Save(o)
+	//     º
+	//   - set the new object fields from its corresponding arguments
+	//     Should check all possible errors.
+	//     If inside this method, there is any error at any step, then:
+	//   - call o.StateChange("Failed", error) and return the error
+	//     If method is executed without errors, then:
+	//   - call o.StateChange("Pending", nil)
+	//   - return the created object o
+
 	//   - set the new object fields from its corresponding arguments
 	o := &ProcessingEngine{
 		BinPath: binPath,
@@ -86,16 +88,17 @@ func newProcessingEngine(binPath string, runArgs []string) (*ProcessingEngine, e
 	return o, nil
 }
 
-// run method should:
-//   - calculate and set o.BinLastModTime
-//   - run the BinPath binary and fill all the o.Runxxx fields
-//     If RunExitcode != 0 then call
-//     o.StateChange("Failed", fmt.Errorf("ProcessingEngine %s gave exit-code %d", o.BinPath, o.RunExitcode))
-//     and return that error
-//     Should check all possible errors
-//     If inside this method, there is any error at any step, then:
-//   - call o.StateChange("Failed", error) and return the error
 func (pe *ProcessingEngine) run() error {
+	// run method should:
+	//   - calculate and set o.BinLastModTime
+	//   - run the BinPath binary and fill all the o.Runxxx fields
+	//     If RunExitcode != 0 then call
+	//     o.StateChange("Failed", fmt.Errorf("ProcessingEngine %s gave exit-code %d", o.BinPath, o.RunExitcode))
+	//     and return that error
+	//     Should check all possible errors
+	//     If inside this method, there is any error at any step, then:
+	//   - call o.StateChange("Failed", error) and return the error
+
 	err := pe.reload(pe) // reload object from db
 	if err != nil {
 		return err
@@ -139,7 +142,7 @@ func (pe *ProcessingEngine) run() error {
 func (o *ProcessingEngine) gormID() uint {
 	return o.ID
 }
-func (o *ProcessingEngine) runArgs() []string {
+func (o *ProcessingEngine) _runArgs() []string {
 	args := []string{o.RunArg1, o.RunArg2, o.RunArg3, o.RunArg4, o.RunArg5}
 	var runArgs []string
 	for _, a_arg := range args {

@@ -15,16 +15,17 @@ type Schema struct {
 	Json        string `gorm:"not null"`
 }
 
-// SchemaNew method should create a new object o and
-//
-//   - set the new object fields from its corresponding arguments
-//   - verify if o.Json is a valid json and if not then return error
-//   - verify the sql unique constraints, or return an error
-//     Should check all possible errors
-//     If inside this method, there is any error at any step, then return the error
-//     If this function is executed without errors, then:
-//   - call o.Save(o) and return the create object o
-func SchemaNew(versionName string, jsonStr string) (*Schema, error) {
+func schemaNew(versionName string, jsonStr string) (*Schema, error) {
+	// SchemaNew method should create a new object o and
+	//
+	//   - set the new object fields from its corresponding arguments
+	//   - verify if o.Json is a valid json and if not then return error
+	//   - verify the sql unique constraints, or return an error
+	//     Should check all possible errors
+	//     If inside this method, there is any error at any step, then return the error
+	//     If this function is executed without errors, then:
+	//   - call o.Save(o) and return the create object o
+
 	var o Schema
 	o.VersionName = versionName
 	o.Json = jsonStr
@@ -48,11 +49,11 @@ func SchemaNew(versionName string, jsonStr string) (*Schema, error) {
 	return &o, nil
 }
 
-func SchemaLoadLatest() (*Schema, error) {
+func schemaLoadLatest() (*Schema, error) {
 	o := &Schema{}
 	err := db.Last(o).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		initialSchema, err1 := schemaCreateInitial()
+		initialSchema, err1 := _schemaCreateInitial()
 		if err1 != nil {
 			return nil, err1
 		}
@@ -63,10 +64,10 @@ func SchemaLoadLatest() (*Schema, error) {
 	return o, nil
 }
 
-func schemaCreateInitial() (*Schema, error) {
+func _schemaCreateInitial() (*Schema, error) {
 	initialVersionName := "initial empty schema"
-	initialJson := ""
-	initialSchema, err := SchemaNew(initialVersionName, initialJson)
+	initialJson := "{}"
+	initialSchema, err := schemaNew(initialVersionName, initialJson)
 	if err != nil {
 		return nil, err
 	}
