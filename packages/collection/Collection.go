@@ -168,6 +168,7 @@ func _isValidDNSLabel(s string) bool {
 	if len(s) > 63 {
 		return false
 	}
-	r, _ := regexp.Compile("^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$")
+	// not perfect, but good enough ;)
+	r, _ := regexp.Compile("^[a-z]([-a-z0-9]*[a-z0-9])?$")
 	return r.MatchString(s)
 }
