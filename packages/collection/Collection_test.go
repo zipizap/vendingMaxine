@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"gorm.io/gorm/clause"
 )
 
 // Ex: 	reprepForTestCollection(t, "../../tests/Collection/processingEngines")
@@ -152,7 +154,19 @@ func TestCollectionDbTables(t *testing.T) {
 
 	// Verify that db table of Collection has expected new row
 	var dbCol Collection
-	err = db.Last(&dbCol).Error
+	/*
+		GORM Nested Preloading
+		Collection
+			ColSelections.Schema
+			ColSelections.ProcessingEngineRunner
+			ColSelections.ProcessingEngineRunner.ProcessingEngines
+	*/
+	err = db.
+		Preload(clause.Associations).    // direct-1-level-deep-fields are loaded
+		Preload("ColSelections.Schema"). // 2orMore-level-deep-fields need explicit "nested preloading" for each deep association
+		Preload("ColSelections.ProcessingEngineRunner").
+		Preload("ColSelections.ProcessingEngineRunner.ProcessingEngines").
+		Last(&dbCol).Error
 	if err != nil {
 		t.Errorf("Expected no error, but got %v", err)
 	}
@@ -162,7 +176,11 @@ func TestCollectionDbTables(t *testing.T) {
 
 	// Verify that db table of ColSelection has expected new row
 	var dbColSel ColSelection
-	err = db.Last(&dbColSel).Error
+	err = db.
+		Preload(clause.Associations). // direct-1-level-deep-fields are loaded
+		Preload("ProcessingEngineRunner").
+		Preload("ProcessingEngineRunner.ProcessingEngines").
+		Last(&dbColSel).Error
 	if err != nil {
 		t.Errorf("Expected no error, but got %v", err)
 	}
@@ -173,147 +191,107 @@ func TestCollectionDbTables(t *testing.T) {
 	if dbColSel.CreatedAt != colSelLatest.CreatedAt {
 		t.Errorf("Unexpected last row")
 	}
+
 	// Verify that db table of ProcessingEngineRunner has expected new row
+	var dbPer ProcessingEngineRunner
+	err = db.
+		Preload(clause.Associations). // direct-1-level-deep-fields are loaded
+		Last(&dbPer).Error
+	if err != nil {
+		t.Errorf("Expected no error, but got %v", err)
+	}
+	if dbPer.CreatedAt != colSelLatest.ProcessingEngineRunner.CreatedAt {
+		t.Errorf("Unexpected last row")
+	}
+
 	// Verify that db table of ProcessingEngine has expected new rows
+	var dbPe ProcessingEngine
+	err = db.
+		Preload(clause.Associations).
+		Last(&dbPe).Error
+	if err != nil {
+		t.Errorf("Expected no error, but got %v", err)
+	}
+	if dbPe.CreatedAt != colSelLatest.ProcessingEngineRunner.ProcessingEngines[len(colSelLatest.ProcessingEngineRunner.ProcessingEngines)-1].CreatedAt {
+		t.Errorf("Unexpected last row")
+	}
+
 	// Verify the State field in all the tables has the expected value
-
-}
-
-/*
-func TestCollectionRecalculateStateAndError(t *testing.T) {
+	// with "processingEngines/" -> "Completed"
+	{
 		reprepForTestCollection(t, "../../tests/Collection/processingEngines")
+		sch, err := schemaNew("schema1", "{}")
+		if err != nil {
+			t.Errorf("Unexpected error, %v", err)
+		}
+		col, err := collectionNew("col-b")
+		if err != nil {
+			t.Errorf("Unexpected error, %v", err)
+		}
+		err = col.appendAndRunColSelection(sch, "jsonInput", "jsonOutput", "requestingUser")
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		// ColSelection.State == "Completed"
+		colSelLatest, err := col.colSelectionLatest()
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		if colSelLatest.State != "Completed" {
+			t.Errorf("Detected unexpected state")
+		}
 
-	// Test recalculation of state and error when the latest ColSelection is in the "Pending" state
-	collection, _ := collectionNew("valid-name")
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{State: "Pending"})
-	collection._recalculateStateAndError(collection.ColSelectionLatest())
-	if collection.State != "Pending" || collection.Error != nil {
-		t.Errorf("Expected collection state to be 'Pending' and error to be nil, but got state '%v' and error '%v'", collection.State, collection.Error)
+		// ProcessineEngineRunner.State == "Completed"
+		if colSelLatest.ProcessingEngineRunner.State != "Completed" {
+			t.Errorf("Detected unexpected state")
+		}
+
+		// ProcessingEngine[-1].State == "Completed"
+		if colSelLatest.ProcessingEngineRunner.ProcessingEngines[len(colSelLatest.ProcessingEngineRunner.ProcessingEngines)-1].State != "Completed" {
+			t.Errorf("Detected unexpected state")
+		}
+		// ProcessingEngine[-1].RunExitCode == 0
+		if colSelLatest.ProcessingEngineRunner.ProcessingEngines[len(colSelLatest.ProcessingEngineRunner.ProcessingEngines)-1].RunExitcode != 0 {
+			t.Errorf("Detected unexpected RunExitCode")
+		}
+	}
+	// with "PeFail/" -> "Failed"
+	{
+		reprepForTestCollection(t, "../../tests/Collection/PeFail")
+		sch, err := schemaNew("schema1", "{}")
+		if err != nil {
+			t.Errorf("Unexpected error, %v", err)
+		}
+		col, err := collectionNew("col-b")
+		if err != nil {
+			t.Errorf("Unexpected error, %v", err)
+		}
+		err = col.appendAndRunColSelection(sch, "jsonInput", "jsonOutput", "requestingUser")
+		if err == nil {
+			t.Errorf("Expected error, but got %v", err)
+		}
+		// ColSelection.State == "Failed"
+		colSelLatest, err := col.colSelectionLatest()
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		if colSelLatest.State != "Failed" {
+			t.Errorf("Detected unexpected state")
+		}
+
+		// ProcessineEngineRunner.State == "Failed"
+		if colSelLatest.ProcessingEngineRunner.State != "Failed" {
+			t.Errorf("Detected unexpected state")
+		}
+
+		// ProcessingEngine[-1].State == "Failed"
+		if colSelLatest.ProcessingEngineRunner.ProcessingEngines[len(colSelLatest.ProcessingEngineRunner.ProcessingEngines)-1].State != "Failed" {
+			t.Errorf("Detected unexpected state")
+		}
+		// ProcessingEngine[-1].RunExitCode != 0
+		if colSelLatest.ProcessingEngineRunner.ProcessingEngines[len(colSelLatest.ProcessingEngineRunner.ProcessingEngines)-1].RunExitcode == 0 {
+			t.Errorf("Detected unexpected RunExitCode")
+		}
 	}
 
-	// Test recalculation of state and error when the latest ColSelection is in the "Running" state
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{State: "Running"})
-	collection._recalculateStateAndError(collection.ColSelectionLatest())
-	if collection.State != "Running" || collection.Error != nil {
-		t.Errorf("Expected collection state to be 'Running' and error to be nil, but got state '%v' and error '%v'", collection.State, collection.Error)
-	}
-
-	// Test recalculation of state and error when the latest ColSelection is in the "Completed" state
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{State: "Completed"})
-	collection._recalculateStateAndError(collection.ColSelectionLatest())
-	if collection.State != "Completed" || collection.Error != nil {
-		t.Errorf("Expected collection state to be 'Completed' and error to be nil, but got state '%v' and error '%v'", collection.State, collection.Error)
-	}
-
-	// Test recalculation of state and error when the latest ColSelection is in the "Failed" state
-	expectedError := errors.New("test error")
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{State: "Failed", Error: expectedError})
-	collection._recalculateStateAndError(collection.ColSelectionLatest())
-	if collection.State != "Failed" || collection.Error.Error() != expectedError.Error() {
-		t.Errorf("Expected collection state to be 'Failed' and error to be '%v', but got state '%v' and error '%v'", expectedError, collection.State, collection.Error)
-	}
 }
-
-func TestCollectionCanBeUpdated(t *testing.T) {
-		reprepForTestCollection(t, "../../tests/Collection/processingEngines")
-
-	// Test that _canBeUpdated returns an error when the collection is in the "Completed" state
-	collection, _ := collectionNew("valid-name")
-	collection.State = "Completed"
-	err := collection._canBeUpdated()
-	if err == nil {
-		t.Errorf("Expected an error, but got no error")
-	}
-
-	// Test that _canBeUpdated returns no error when the collection is not in the "Completed" state
-	collection.State = "Running"
-	err = collection._canBeUpdated()
-	if err != nil {
-		t.Errorf("Expected no error, but got %v", err)
-	}
-}
-
-func TestCollectionColSelectionLatest(t *testing.T) {
-		reprepForTestCollection(t, "../../tests/Collection/processingEngines")
-
-	// Test that colSelectionLatest returns the latest ColSelection
-	collection, _ := collectionNew("valid-name")
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{ID: 1})
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{ID: 2})
-	latest, _ := collection.colSelectionLatest()
-	if latest.ID != 2 {
-		t.Errorf("Expected latest ColSelection ID to be 2, but got %v", latest.ID)
-	}
-
-	// Test that colSelectionLatest returns an error when there are no ColSelections
-	collection.ColSelections = []*ColSelection{}
-	_, err := collection.colSelectionLatest()
-	if err == nil {
-		t.Errorf("Expected an error, but got no error")
-	}
-}
-
-func TestCollectionSaveAndDelete(t *testing.T) {
-		reprepForTestCollection(t, "../../tests/Collection/processingEngines")
-
-	// Test saving and deleting a collection
-	collection, _ := collectionNew("valid-name")
-	err := collection.save(&collection)
-	if err != nil {
-		t.Errorf("Expected no error, but got %v", err)
-	}
-	err = collection.delete(&collection)
-	if err != nil {
-		t.Errorf("Expected no error, but got %v", err)
-	}
-}
-
-func TestCollectionGormID(t *testing.T) {
-		reprepForTestCollection(t, "../../tests/Collection/processingEngines")
-
-	// Test that gormID returns the ID of the collection
-	collection, _ := collectionNew("valid-name")
-	if collection.gormID() != collection.ID {
-		t.Errorf("Expected gormID to return %v, but got %v", collection.ID, collection.gormID())
-	}
-}
-
-func TestCollectionReload(t *testing.T) {
-		reprepForTestCollection(t, "../../tests/Collection/processingEngines")
-
-	// Test reloading a collection
-	collection, _ := collectionNew("valid-name")
-	collection.Name = "newName"
-	err := collection.save(&collection)
-	if err != nil {
-		t.Errorf("Expected no error, but got %v", err)
-	}
-	err = collection.reload(&collection)
-	if err != nil {
-		t.Errorf("Expected no error, but got %v", err)
-	}
-	if collection.Name != "valid-name" {
-		t.Errorf("Expected collection name to be 'valid-name', but got %v", collection.Name)
-	}
-}
-
-func TestCollectionStateAndColSelectionState(t *testing.T) {
-		reprepForTestCollection(t, "../../tests/Collection/processingEngines")
-
-	// Test that c.State == c.ColSelections.State when c.ColSelections.State == "Completed"
-	collection, _ := collectionNew("valid-name")
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{State: "Completed"})
-	collection._recalculateStateAndError(collection.ColSelectionLatest())
-	if collection.State != "Completed" || collection.ColSelections.State != "Completed" {
-		t.Errorf("Expected collection state and ColSelections state to be 'Completed', but got collection state '%v' and ColSelections state '%v'", collection.State, collection.ColSelections.State)
-	}
-
-	// Test that c.State == c.ColSelections.State when c.ColSelections.State == "Failed"
-	expectedError := errors.New("test error")
-	collection.ColSelections = append(collection.ColSelections, &ColSelection{State: "Failed", Error: expectedError})
-	collection._recalculateStateAndError(collection.ColSelectionLatest())
-	if collection.State != "Failed" || collection.ColSelections.State != "Failed" {
-		t.Errorf("Expected collection state and ColSelections state to be 'Failed', but got collection state '%v' and ColSelections state '%v'", collection.State, collection.ColSelections.State)
-	}
-}
-*/

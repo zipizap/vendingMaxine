@@ -3,7 +3,10 @@ package collection
 import "fmt"
 
 // Use the Facilitator functions, and avoid messing with anything else inside the package :)
-// (Facilitator is just a dummy type, a placeholder of functions to be called by the API :))
+//
+// Facilitator is just a dummy type, a placeholder of functions to be called by the API :)
+//
+// f.InitSetup() function must be called first, before calling any other functions of this package
 type Facilitator struct{}
 
 func NewFacilitator() (*Facilitator, error) {
@@ -18,11 +21,11 @@ func (f *Facilitator) InitSetup(dbFilepath string, processingEnginesDirpath stri
 
 // CollectionsOverview returns list of maps with usefull info of all collections
 //
-//	colsInfo, err := CollectionsOverview()
+//	colsInfo, err := f.CollectionsOverview()
 //	for _, a_colInfo := range colsInfo {
 //	  fmt.Println("Collection Name: " , a_colInfo["Name"])
 //	  fmt.Println("Collection State: ", a_colInfo["State"])
-//	  fmt.Println("Collection Error: ", a_colInfo["Error"])
+//	  fmt.Println("Collection ErrorStr: ", a_colInfo["ErrorStr"])
 //	}
 func (f *Facilitator) CollectionsOverview() (colsInfo []map[string]string, err error) {
 	var colList []*Collection
@@ -32,9 +35,9 @@ func (f *Facilitator) CollectionsOverview() (colsInfo []map[string]string, err e
 	}
 	for _, col := range colList {
 		colsInfo = append(colsInfo, map[string]string{
-			"Name":  col.Name,
-			"State": col.State,
-			"Error": col.ErrorString,
+			"Name":     col.Name,
+			"State":    col.State,
+			"ErrorStr": col.ErrorString,
 		})
 	}
 	return colsInfo, nil
@@ -94,4 +97,28 @@ func (f *Facilitator) CollectionEditSave(colName string, schema *Schema, jsonInp
 func (f *Facilitator) CollectionNew(colName string) error {
 	_, err := collectionNew(colName)
 	return err
+}
+
+// Save a new schema, and apply it to all existing Collections
+func (f *Facilitator) SchemaSaveAndApplyToAllCollections(versionName string, jsonStr string) error {
+	// Save new schema latest
+	_, err := schemaNew(versionName, jsonStr)
+	if err != nil {
+		return err
+	}
+
+	// Apply to all Collections
+	requestingUser := "system-apply-new-schema"
+	colsInfo, err := f.CollectionsOverview()
+	for _, a_colInfo := range colsInfo {
+		a_col_Name := a_colInfo["Name"]
+		schemaLatest, jsonInput, err := f.CollectionEditStart(a_col_Name)
+		if err != nil {
+			return err
+		}
+		jsonOutput := jsonInput
+		f.CollectionEditSave(a_col_Name, schemaLatest, jsonInput, jsonOutput, requestingUser)
+	}
+
+	return nil
 }

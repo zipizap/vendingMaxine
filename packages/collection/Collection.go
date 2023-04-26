@@ -53,6 +53,11 @@ func collectionNew(name string) (*Collection, error) {
 	if !_isValidDNSLabel(name) {
 		return nil, errors.New("invalid DNS label")
 	}
+	// if collection already exists, return error
+	if _, err := collectionLoad(name); err == nil {
+		return nil, fmt.Errorf("Collection %v already exists", name)
+	}
+
 	initialColSel, err := _colSelectionCreateInitial()
 	if err != nil {
 		return nil, err
@@ -77,7 +82,13 @@ func collectionNew(name string) (*Collection, error) {
 // collectionLoad loads from db
 func collectionLoad(name string) (*Collection, error) {
 	o := &Collection{}
+	// The following db.Where... will not do nested-preloading, that will be done latter
+	// with the o.reload(o) call
 	err := db.Where("name = ?", name).First(o).Error
+	if err != nil {
+		return nil, err
+	}
+	err = o.reload(o)
 	if err != nil {
 		return nil, err
 	}

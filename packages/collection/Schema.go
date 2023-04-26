@@ -61,11 +61,13 @@ func schemaLoadLatest() (*Schema, error) {
 	} else if err != nil {
 		return nil, err
 	}
+	// call o.reload() in case there is any future nested-preloading
+	o.reload(o)
 	return o, nil
 }
 
 func _schemaCreateInitial() (*Schema, error) {
-	initialVersionName := "initial empty schema"
+	initialVersionName := "initial-empty-schema"
 	initialJson := "{}"
 	initialSchema, err := schemaNew(initialVersionName, initialJson)
 	if err != nil {
