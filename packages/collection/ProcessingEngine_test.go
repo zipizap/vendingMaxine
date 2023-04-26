@@ -51,7 +51,7 @@ func TestNewProcessingEngine(t *testing.T) {
 func TestProcessingEngine_Run(t *testing.T) {
 	prepForTestProcessingEngine(t)
 
-	binPath := "processingEngines/0200.echo_args_env.sh"
+	binPath := "processingEngines/0200.echo_args.sh"
 	runArgs := []string{"arg1", "arg2"}
 
 	pe, err := newProcessingEngine(binPath, runArgs)
