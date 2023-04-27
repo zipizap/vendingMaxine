@@ -14,9 +14,9 @@ How to use this package in your code:
 	f.InitSetup(dbFilepath, processingEnginesDirpath)
 
 
-	// Then call other Facilitator methods, ex:
+	// Then call any other Facilitator methods, ex:
 	f.CollectionNew(...)
-	f.CollectionLoad(...)
-	f....
+	f.CollectionsOverview(...)
+	...
 */
 package collection
