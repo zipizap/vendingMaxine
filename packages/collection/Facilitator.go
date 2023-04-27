@@ -28,63 +28,68 @@ func (f *Facilitator) InitSetup(dbFilepath string, processingEnginesDirpath stri
 //	  fmt.Println("Collection ErrorStr: ", a_colInfo["ErrorStr"])
 //	}
 func (f *Facilitator) CollectionsOverview() (colsInfo []map[string]string, err error) {
-	var colList []*Collection
-	err = db.Select("name", "state", "error_string").Find(&colList).Error
-	if err != nil {
-		return nil, err
-	}
-	for _, col := range colList {
-		colsInfo = append(colsInfo, map[string]string{
-			"Name":     col.Name,
-			"State":    col.State,
-			"ErrorStr": col.ErrorString,
-		})
-	}
-	return colsInfo, nil
+	return collectionsOverview()
 }
 
-// CollectionEditStart returns the necessary data to start-editing a collection
-func (f *Facilitator) CollectionEditStart(colName string) (schemaLatest *Schema, jsonInput string, err error) {
+// CollectionEdit_Prepinfo returns the preparatory-info necessary to start editing a collection
+func (f *Facilitator) CollectionEdit_Prepinfo(colName string) (schemaJson string, jsonInput string, err error) {
+	allowSchemaUpdate := false
+	return f._collectionEdit_Prepinfo(colName, allowSchemaUpdate)
+}
+func (f *Facilitator) _collectionEdit_Prepinfo(colName string, allowSchemaUpdate bool) (schemaJson string, jsonInput string, err error) {
 	var col *Collection
 	col, err = collectionLoad(colName)
 	if err != nil {
-		return nil, "", err
+		return "", "", err
 	}
-	if err = col._canBeUpdated(); err != nil {
-		return nil, "", err
+	if err = col.canBeUpdated(); err != nil {
+		return "", "", err
 	}
 
-	schemaLatest, err = schemaLoadLatest()
+	schemaLatest, err := schemaLoadLatest()
 	if err != nil {
-		return nil, "", err
+		return "", "", err
 	}
+	schemaJson = schemaLatest.Json
 
 	cselLatest, err := col.colSelectionLatest()
 	if err != nil {
-		return nil, "", err
+		return "", "", err
 	}
 
 	// thisEdit::jsonInput = formerEdit::jsonOutput
 	jsonInput = cselLatest.JsonOutput
 
-	// Safety validation: we dont accept schema-updates between cselLatest and now
-	if cselLatest.SchemaID != schemaLatest.ID {
-		return nil, "", fmt.Errorf("safety-protection, a schema-update is not accepted between last edit and now")
+	if !allowSchemaUpdate {
+		// Safety validation: we dont accept schema-updates between cselLatest and now
+		if cselLatest.SchemaID != schemaLatest.ID {
+			return "", "", fmt.Errorf("safety-protection, a schema-update is not allowed between last edit and now")
+		}
 	}
 
-	return schemaLatest, jsonInput, nil
+	return schemaJson, jsonInput, nil
 }
 
-// CollectionEditSave stores data after an edit-save, to update the collection
-func (f *Facilitator) CollectionEditSave(colName string, schema *Schema, jsonInput string, jsonOutput string, requestingUser string) error {
+// CollectionEdit_Save updates the collection
+func (f *Facilitator) CollectionEdit_Save(colName string, schemaJson string, jsonInput string, jsonOutput string, requestingUser string) error {
 	col, err := collectionLoad(colName)
 	if err != nil {
 		return err
 	}
-	if err = col._canBeUpdated(); err != nil {
+	if err = col.canBeUpdated(); err != nil {
 		return err
 	}
-	err = col.appendAndRunColSelection(schema, jsonInput, jsonOutput, requestingUser)
+
+	// Assure schemaJson == schemaLatest.Json
+	schemaLatest, err := schemaLoadLatest()
+	if err != nil {
+		return err
+	}
+	if schemaJson != schemaLatest.Json {
+		return fmt.Errorf("schemaJson != schemaLatest.Json which is unexpected - cannot save new collection with differing schemaJson")
+	}
+
+	err = col.appendAndRunColSelection(schemaLatest, jsonInput, jsonOutput, requestingUser)
 	if err != nil {
 		return err
 	}
@@ -99,10 +104,22 @@ func (f *Facilitator) CollectionNew(colName string) error {
 	return err
 }
 
-// Save a new schema, and apply it to all existing Collections
-func (f *Facilitator) SchemaSaveAndApplyToAllCollections(versionName string, jsonStr string) error {
+// SchemaEdit_Prepinfo returns the preparatory-info necessary to prepare for a new schema
+func (f *Facilitator) SchemaEdit_Prepinfo() (latestSchemaVersionName string, latestSchemaJsonStr string, err error) {
+	latestSchema, err := schemaLoadLatest()
+	if err != nil {
+		return "", "", err
+	}
+	latestSchemaVersionName = latestSchema.VersionName
+	latestSchemaJsonStr = latestSchema.Json
+	err = nil
+	return latestSchemaVersionName, latestSchemaJsonStr, err
+}
+
+// SchemaEdit_SaveAndApplyToAllCollections will create a new schema, and apply it to all existing Collections
+func (f *Facilitator) SchemaEdit_SaveAndApplyToAllCollections(newSchemaVersionName string, newSchemaJsonStr string) error {
 	// Save new schema latest
-	_, err := schemaNew(versionName, jsonStr)
+	_, err := schemaNew(newSchemaVersionName, newSchemaJsonStr)
 	if err != nil {
 		return err
 	}
@@ -110,15 +127,21 @@ func (f *Facilitator) SchemaSaveAndApplyToAllCollections(versionName string, jso
 	// Apply to all Collections
 	requestingUser := "system-apply-new-schema"
 	colsInfo, err := f.CollectionsOverview()
+	if err != nil {
+		return err
+	}
 	for _, a_colInfo := range colsInfo {
 		a_col_Name := a_colInfo["Name"]
-		schemaLatest, jsonInput, err := f.CollectionEditStart(a_col_Name)
+		allowSchemaUpdate := true
+		schemaLatest, jsonInput, err := f._collectionEdit_Prepinfo(a_col_Name, allowSchemaUpdate)
 		if err != nil {
-			return err
+			return fmt.Errorf("SchemaUpdate interrupted by error: %v", err)
 		}
 		jsonOutput := jsonInput
-		f.CollectionEditSave(a_col_Name, schemaLatest, jsonInput, jsonOutput, requestingUser)
+		err = f.CollectionEdit_Save(a_col_Name, schemaLatest, jsonInput, jsonOutput, requestingUser)
+		if err != nil {
+			return fmt.Errorf("SchemaUpdate interrupted by error: %v", err)
+		}
 	}
-
 	return nil
 }

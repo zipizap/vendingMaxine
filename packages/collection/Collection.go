@@ -95,12 +95,36 @@ func collectionLoad(name string) (*Collection, error) {
 	return o, nil
 }
 
+// collectionsOverview returns list of maps with usefull info of all collections
+//
+//	colsInfo, err := collectionsOverview()
+//	for _, a_colInfo := range colsInfo {
+//	  fmt.Println("Collection Name: " , a_colInfo["Name"])
+//	  fmt.Println("Collection State: ", a_colInfo["State"])
+//	  fmt.Println("Collection ErrorStr: ", a_colInfo["ErrorStr"])
+//	}
+func collectionsOverview() (colsInfo []map[string]string, err error) {
+	var colList []*Collection
+	err = db.Select("name", "state", "error_string").Find(&colList).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, col := range colList {
+		colsInfo = append(colsInfo, map[string]string{
+			"Name":     col.Name,
+			"State":    col.State,
+			"ErrorStr": col.ErrorString,
+		})
+	}
+	return colsInfo, nil
+}
+
 func (c *Collection) appendAndRunColSelection(schema *Schema, jsonInput string, jsonOutput string, requestingUser string) error {
 	err := c.reload(c) // reload object from db
 	if err != nil {
 		return err
 	}
-	if err = c._canBeUpdated(); err != nil {
+	if err = c.canBeUpdated(); err != nil {
 		return err
 	}
 
@@ -133,7 +157,7 @@ func (c *Collection) colSelectionLatest() (*ColSelection, error) {
 	return csel, nil
 }
 
-func (c *Collection) _canBeUpdated() error {
+func (c *Collection) canBeUpdated() error {
 	if c.State != "Completed" {
 		return fmt.Errorf("collecion %s cannot be edited/updated as its in state %s", c.Name, c.State)
 	}
