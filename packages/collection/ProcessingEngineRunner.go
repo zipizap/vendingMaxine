@@ -128,6 +128,8 @@ func (per *ProcessingEngineRunner) run() error {
 //	Use per.StateChange(newState, newError)
 func (per *ProcessingEngineRunner) _recalculateStateAndError(pe *ProcessingEngine) {
 	_ = per.reload(per) // reload object from db
+	_ = pe.reload(pe)   // reload object from db
+
 	// skip if pe != per.ProcessingEngine[-1]
 	if pe.ID != per.ProcessingEngines[len(per.ProcessingEngines)-1].ID {
 		return

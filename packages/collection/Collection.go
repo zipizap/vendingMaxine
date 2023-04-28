@@ -130,13 +130,13 @@ func (c *Collection) appendAndRunColSelection(schema *Schema, jsonInput string, 
 
 	var csel *ColSelection
 	csel, err = newColSelection(schema, jsonInput, jsonOutput, requestingUser)
+	c.ColSelections = append(c.ColSelections, csel)
+	err2 := c.save(c)
 	if err != nil {
 		return err
 	}
-	c.ColSelections = append(c.ColSelections, csel)
-	err = c.save(c)
-	if err != nil {
-		return err
+	if err2 != nil {
+		return err2
 	}
 	// ObserverCallback to run c.RecalculateStateAndError()
 	csel.RegisterObserverCallback(
@@ -174,7 +174,9 @@ func (c *Collection) canBeUpdated() error {
 //	  "Failed"/error                 =>  "Failed"/error
 //	Use c.StateChange(newState, newError)
 func (c *Collection) _recalculateStateAndError(csel *ColSelection) {
-	_ = c.reload(c) // reload object from db
+	_ = c.reload(c)       // reload object from db
+	_ = csel.reload(csel) // reload object from db
+
 	// skip if csel != cs (cs := c.ColSelections[-1])
 	cs := c.ColSelections[len(c.ColSelections)-1]
 	if cs.ID != csel.ID {

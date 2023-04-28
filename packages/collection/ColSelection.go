@@ -81,11 +81,16 @@ func (csel *ColSelection) run() error {
 	}
 	per, err := newProcessingEngineRunner()
 	csel.ProcessingEngineRunner = per
-	csel.save(csel)
+	err2 := csel.save(csel)
 	if err != nil {
 		csel.StateChange("Failed", err)
 		return err
 	}
+	if err2 != nil {
+		csel.StateChange("Failed", err2)
+		return err2
+	}
+
 	// ObserverCallback to run csel.RecalculateStateAndError()
 	per.RegisterObserverCallback(
 		func(oldState string, oldError error, xstate *xstate.XState) error {
@@ -110,6 +115,7 @@ func (csel *ColSelection) run() error {
 //	Use csel.StateChange(newState, newError)
 func (csel *ColSelection) _recalculateStateAndError(per *ProcessingEngineRunner) {
 	_ = csel.reload(csel) // reload object from db
+	_ = per.reload(per)   // reload object from db
 
 	// skip if per != csel.ProcessingEngineRunner
 	if per.ID != csel.ProcessingEngineRunner.ID {

@@ -175,3 +175,114 @@ func TestFacilitatorSchemaEdit(t *testing.T) {
 
 	}
 }
+
+// Using "../../tests/Facilitator/PeFail" which executes 1 pr returning "exit 1" and makes Collection "Failed"
+// For each a_col {"col1", "col2", ...}
+//
+//	Create a_col
+//
+// Then verify for all collections, using CollectionsOverview(), that colX.State=="Completed"
+//
+// Call f.SchemaEdit_Prepinfo + f.SchemaEdit_SaveAndApplyToAllCollections
+// Then verify for all collections, using CollectionsOverview(), that colX.State=="Failed" and len (colX.ColSelections)==2
+// Call f.SchemaEdit_Prepinfo + f.SchemaEdit_SaveAndApplyToAllCollections
+// Then verify for all collections, using CollectionsOverview(), that colX.State=="Failed" and len (colX.ColSelections)==3
+func TestFacilitatorSchemaShouldReExecuteAllCollections(t *testing.T) {
+	reprepForTestFacilitator(t, "../../tests/Facilitator/PeFail")
+	var f *Facilitator
+	var err error
+	{
+		f, err = NewFacilitator()
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+	}
+
+	// Using "../../tests/Facilitator/PeFail" which executes 1 pr returning "exit 1" and makes Collection "Failed"
+	// For each a_col {"col1", "col2", ...}
+	//   Create a_col
+	//
+	// Then verify for all collections, using CollectionsOverview(), that colX.State=="Completed"
+	//
+	//colsNames := []string{"col1", "col2", "col3"}
+	colsNames := []string{"col1"}
+	{
+		for _, a_colName := range colsNames {
+			f.CollectionNew(a_colName)
+			if err != nil {
+				t.Errorf("Expected no error, but got %v", err)
+			}
+		}
+
+		colsInfo, err := f.CollectionsOverview()
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		for _, a_colInfo := range colsInfo {
+			if a_colInfo["State"] != "Completed" {
+				t.Errorf("Expected all collections state to be Completed, but instead got %v", a_colInfo["State"])
+			}
+		}
+	}
+
+	// Call f.SchemaEdit_Prepinfo + f.SchemaEdit_SaveAndApplyToAllCollections
+	// Then verify for all collections, using CollectionsOverview(), that colX.State=="Failed" and len (colX.ColSelections)==2
+	// Call f.SchemaEdit_Prepinfo + f.SchemaEdit_SaveAndApplyToAllCollections
+	// Then verify for all collections, using CollectionsOverview(), that colX.State=="Failed" and len (colX.ColSelections)==3
+	{
+		_, _, err := f.SchemaEdit_Prepinfo()
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		newSchemaVersionName := "my-schema2"
+		newSchemaJsonStr := `{"changed":"new-schema2"}`
+		err = f.SchemaEdit_SaveAndApplyToAllCollections(newSchemaVersionName, newSchemaJsonStr)
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+
+		colsInfo, err := f.CollectionsOverview()
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		for _, a_colInfo := range colsInfo {
+			if a_colInfo["State"] != "Failed" {
+				t.Errorf("Expected all collections state to be Failed, but instead got %v", a_colInfo["State"])
+			}
+		}
+
+	}
+
+	/*
+	   	{
+	   		latestSchemaVersionName, latestSchemaJsonStr, err := f.SchemaEdit_Prepinfo()
+	   		if err != nil {
+	   			t.Errorf("Expected no error, but got %v", err)
+	   		}
+	   		if latestSchemaVersionName != "initial-empty-schema" {
+	   			t.Errorf("Unexpected outcome from comparison")
+	   		}
+	   		if latestSchemaJsonStr != "{}" {
+	   			t.Errorf("Unexpected outcome from comparison")
+	   		}
+	   		newSchemaVersionName := "my-schema2"
+	   		newSchemaJsonStr := `{"changed":"new-schema2"}`
+	   		err = f.SchemaEdit_SaveAndApplyToAllCollections(newSchemaVersionName, newSchemaJsonStr)
+	   		if err != nil {
+	   			t.Errorf("Expected no error, but got %v", err)
+	   		}
+
+	   		latestSchemaVersionName, latestSchemaJsonStr, err = f.SchemaEdit_Prepinfo()
+	   		if err != nil {
+	   			t.Errorf("Expected no error, but got %v", err)
+	   		}
+	   		if latestSchemaVersionName != newSchemaVersionName {
+	   			t.Errorf("Unexpected outcome from comparison")
+	   		}
+	   		if latestSchemaJsonStr != newSchemaJsonStr {
+	   			t.Errorf("Unexpected outcome from comparison")
+	   		}
+
+	   }
+	*/
+}

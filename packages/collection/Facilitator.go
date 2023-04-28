@@ -135,12 +135,14 @@ func (f *Facilitator) SchemaEdit_SaveAndApplyToAllCollections(newSchemaVersionNa
 		allowSchemaUpdate := true
 		schemaLatest, jsonInput, err := f._collectionEdit_Prepinfo(a_col_Name, allowSchemaUpdate)
 		if err != nil {
-			return fmt.Errorf("SchemaUpdate interrupted by error: %v", err)
+			//TODO: internally log this somehow, its important when a schema-update makes a collection fail!
+			fmt.Printf("SchemaUpdate got error: %v \n", err)
 		}
 		jsonOutput := jsonInput
 		err = f.CollectionEdit_Save(a_col_Name, schemaLatest, jsonInput, jsonOutput, requestingUser)
 		if err != nil {
-			return fmt.Errorf("SchemaUpdate interrupted by error: %v", err)
+			//TODO: internally log this somehow, its important when a schema-update makes a collection fail!
+			fmt.Printf("SchemaUpdate got error: %v \n", err)
 		}
 	}
 	return nil
