@@ -133,11 +133,11 @@ func (c *Collection) appendAndRunColSelection(schema *Schema, jsonInput string, 
 
 	var csel *ColSelection
 	csel, err = newColSelection(schema, jsonInput, jsonOutput, requestingUser)
-	c.ColSelections = append(c.ColSelections, csel)
-	err2 := c.save(c)
 	if err != nil {
 		return err
 	}
+	c.ColSelections = append(c.ColSelections, csel)
+	err2 := c.save(c)
 	if err2 != nil {
 		return err2
 	}
