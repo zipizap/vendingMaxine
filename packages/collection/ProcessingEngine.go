@@ -17,6 +17,7 @@ import (
 type ProcessingEngine struct {
 	gorm.Model
 	ProcessingEngineRunnerID uint
+	ProcessingEngineRunner   *ProcessingEngineRunner
 	BinPath                  string    // relative path to processing-engine binary
 	BinLastModTime           time.Time // bin-file LastModTime
 	RunStartTime             time.Time
@@ -76,16 +77,19 @@ func newProcessingEngine(binPath string, runArgs []string) (*ProcessingEngine, e
 			return nil, fmt.Errorf("runArgs limited to at most 5 args")
 		}
 	}
-	//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) {
-	//     o.Save(o)
-	//   }
-	o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
-		o.save(o)
-		return nil
-	})
 
-	o.StateChange("Pending", nil)
+	o.StateChange(o, "Pending", nil)
 	return o, nil
+}
+func (o *ProcessingEngine) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+	err := o.save(o)
+	if err != nil {
+		return err
+	}
+	if o.ProcessingEngineRunner != nil {
+		o.ProcessingEngineRunner._recalculateStateAndError(o)
+	}
+	return nil
 }
 
 func (pe *ProcessingEngine) run() error {
@@ -107,7 +111,7 @@ func (pe *ProcessingEngine) run() error {
 	//   - calculate and set o.BinLastModTime
 	fileInfo, err := os.Stat(pe.BinPath)
 	if err != nil {
-		pe.StateChange("Failed", err)
+		pe.StateChange(pe, "Failed", err)
 		return err
 	}
 	pe.BinLastModTime = fileInfo.ModTime()
@@ -128,14 +132,14 @@ func (pe *ProcessingEngine) run() error {
 	pe.RunStdout = stdoutBuf.String()
 	if pe.RunExitcode != 0 {
 		err := fmt.Errorf("ProcessingEngine %s gave exit-code %d", pe.BinPath, pe.RunExitcode)
-		pe.StateChange("Failed", err)
+		pe.StateChange(pe, "Failed", err)
 		return err
 	} else if err != nil {
-		pe.StateChange("Failed", err)
+		pe.StateChange(pe, "Failed", err)
 		return err
 	}
 
-	pe.StateChange("Completed", nil)
+	pe.StateChange(pe, "Completed", nil)
 	return nil
 }
 

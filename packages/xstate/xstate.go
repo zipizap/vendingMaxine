@@ -9,39 +9,44 @@ import (
   "vendingMaxine/packages/xstate"
 )
 
-// 1. embed into struct
+// 1.1. embed into struct
 type Mys struct {
   xstate.XState  `gorm:"embedded"`
 }
 
-// 2. constructor: set initial state, register callback
+// 1.2. constructor: set initial state
 func NewMys() (*Mys, err) {
 	mys := &Mys{
 		XState: xstate.XState{
 			State: "Initializing",
 		}
 	}
-	mys.RegisterObserverCallback(
-		func(oldState string, oldError error, xstate *XState) error {
-			mys.SaveToDb()
-		}
-	)
 	...
 	return mys
 }
 
-// 3. Change state when you need (it will implicitly run all observerCallback functions)
-err := mys.StateChange("Running", nil)
+// 1.3. define Mys.StateChangePostHandle()
+// - to implement interface StateChangePostHandler
+// - to make any db.Save() or callback methods from other objects
+func (o *Mys) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+	o.save(o)
+	p := o.someParentObj
+	return p.StateChange(p, newXstate.State, newXstate.Error())
+}
+
+// 2. Change state when you need (it will implicitly call mys.StateChangePostHandle())
+err := mys.StateChange(mys, "Running", nil)
 ...
 
 */
 
-type XStateObserverCallback func(oldState string, oldError error, xstate *XState) error
+type StateChangePostHandler interface {
+	StateChangePostHandle(oldState string, oldError error, xstate *XState) error
+}
 
 type XState struct {
-	State             string                   // "Pending" > "Running" > "Completed" or "Failed"
-	ErrorString       string                   // set non-empty when State=="Failed"
-	observerCallbacks []XStateObserverCallback // called after each state change
+	State       string // "Pending" > "Running" > "Completed" or "Failed"
+	ErrorString string // set non-empty when State=="Failed"
 }
 
 func (x *XState) Error() error {
@@ -52,11 +57,7 @@ func (x *XState) Error() error {
 	}
 }
 
-func (x *XState) RegisterObserverCallback(xso XStateObserverCallback) {
-	x.observerCallbacks = append(x.observerCallbacks, xso)
-}
-
-func (x *XState) StateChange(nextState string, nextError error) error {
+func (x *XState) StateChange(i StateChangePostHandler, nextState string, nextError error) error {
 	oldState := x.State
 	oldError := x.Error()
 	x.State = nextState
@@ -65,11 +66,33 @@ func (x *XState) StateChange(nextState string, nextError error) error {
 	} else {
 		x.ErrorString = ""
 	}
-	for _, a_callback := range x.observerCallbacks {
-		err := a_callback(oldState, oldError, x)
-		if err != nil {
-			return err
-		}
+	err := i.StateChangePostHandle(oldState, oldError, x)
+	if err != nil {
+		return err
 	}
 	return nil
 }
+
+// type XStateObserverCallback func(oldState string, oldError error, xstate *XState) error
+//
+// func (x *XState) RegisterObserverCallback(xso XStateObserverCallback) {
+// 	x.observerCallbacks = append(x.observerCallbacks, xso)
+// }
+//
+// func (x *XState) StateChange(nextState string, nextError error) error {
+// 	oldState := x.State
+// 	oldError := x.Error()
+// 	x.State = nextState
+// 	if nextError != nil {
+// 		x.ErrorString = nextError.Error()
+// 	} else {
+// 		x.ErrorString = ""
+// 	}
+// 	for _, a_callback := range x.observerCallbacks {
+// 		err := a_callback(oldState, oldError, x)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }

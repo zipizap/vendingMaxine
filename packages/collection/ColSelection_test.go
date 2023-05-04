@@ -39,6 +39,7 @@ func TestRunColSelection_PeAllOk(t *testing.T) {
 
 	// run ColSelection object
 	err = csel.run()
+
 	assert.Nil(t, err)
 
 	// verify correct cs.State and cs.Error() with per.State

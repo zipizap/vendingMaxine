@@ -12,7 +12,8 @@ import (
 //   - Error() error:  set when State=="Failed"
 type ColSelection struct {
 	gorm.Model
-	CollectionID           uint    // relationship 1Collection-to-manyColSelections
+	CollectionID           uint // relationship 1Collection-to-manyColSelections
+	Collection             *Collection
 	Schema                 *Schema // relationship manyColSelections-to-1Schema
 	SchemaID               uint    // relationship manyColSelections-to-1Schema
 	JsonInput              string
@@ -53,17 +54,24 @@ func newColSelection(schema *Schema, jsonInput string, jsonOutput string, reques
 		RequestingUser: requestingUser,
 	}
 
-	o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
-		o.save(o)
-		return nil
-	})
-	err = o.StateChange("Pending", nil)
+	err = o.StateChange(o, "Pending", nil)
 	if err != nil {
-		o.StateChange("Failed", err)
+		o.StateChange(o, "Failed", err)
 		return nil, err
 	}
 
 	return o, nil
+}
+
+func (o *ColSelection) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+	err := o.save(o)
+	if err != nil {
+		return err
+	}
+	if o.Collection != nil {
+		o.Collection._recalculateStateAndError(o)
+	}
+	return nil
 }
 
 func (csel *ColSelection) run() error {
@@ -83,25 +91,24 @@ func (csel *ColSelection) run() error {
 	csel.ProcessingEngineRunner = per
 	err2 := csel.save(csel)
 	if err != nil {
-		csel.StateChange("Failed", err)
+		csel.StateChange(csel, "Failed", err)
 		return err
 	}
 	if err2 != nil {
-		csel.StateChange("Failed", err2)
+		csel.StateChange(csel, "Failed", err2)
 		return err2
 	}
 
-	// ObserverCallback to run csel.RecalculateStateAndError()
-	per.RegisterObserverCallback(
-		func(oldState string, oldError error, xstate *xstate.XState) error {
-			csel._recalculateStateAndError(per)
-			return nil
-		})
 	err = per.run()
+	err2 = csel.reload(csel) // reload object from db
 	if err != nil {
-		csel.StateChange("Failed", err)
+		csel.StateChange(csel, "Failed", err)
 		return err
 	}
+	if err2 != nil {
+		return err2
+	}
+
 	return nil
 }
 
@@ -123,14 +130,14 @@ func (csel *ColSelection) _recalculateStateAndError(per *ProcessingEngineRunner)
 	}
 	switch per.State {
 	case "Pending":
-		csel.StateChange("Pending", nil)
+		csel.StateChange(csel, "Pending", nil)
 	case "Running":
-		csel.StateChange("Running", nil)
+		csel.StateChange(csel, "Running", nil)
 	case "Completed":
-		csel.StateChange("Completed", nil)
+		csel.StateChange(csel, "Completed", nil)
 	case "Failed":
 		// IMPROVEMENT: This error here should be improved to indicate the originating per
-		csel.StateChange("Failed", per.Error())
+		csel.StateChange(csel, "Failed", per.Error())
 	default:
 		panic(fmt.Sprintf("Unrecognized per.State %s", per.State))
 	}

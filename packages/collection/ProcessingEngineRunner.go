@@ -21,6 +21,7 @@ func initProcessingEngineRunner(processingEnginesDirpath string) {
 type ProcessingEngineRunner struct {
 	gorm.Model
 	ColSelectionID    uint
+	ColSelection      *ColSelection
 	ProcessingEngines []*ProcessingEngine
 	dbMethods
 	xstate.XState `gorm:"embedded"`
@@ -40,16 +41,22 @@ func newProcessingEngineRunner() (*ProcessingEngineRunner, error) {
 	//   - return the created object o
 
 	o := &ProcessingEngineRunner{}
-	o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
-		o.save(o)
-		return nil
-	})
-	err := o.StateChange("Pending", nil)
+	err := o.StateChange(o, "Pending", nil)
 	if err != nil {
-		o.StateChange("Failed", err)
+		o.StateChange(o, "Failed", err)
 		return nil, err
 	}
 	return o, nil
+}
+func (o *ProcessingEngineRunner) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+	err := o.save(o)
+	if err != nil {
+		return err
+	}
+	if o.ColSelection != nil {
+		o.ColSelection._recalculateStateAndError(o)
+	}
+	return nil
 }
 
 func (per *ProcessingEngineRunner) run() error {
@@ -74,7 +81,7 @@ func (per *ProcessingEngineRunner) run() error {
 	{
 		files, err := ioutil.ReadDir(binpathsDir)
 		if err != nil {
-			per.StateChange("Failed", err)
+			per.StateChange(per, "Failed", err)
 			return err
 		}
 
@@ -93,7 +100,7 @@ func (per *ProcessingEngineRunner) run() error {
 	for _, binPath := range binPaths {
 		pe, err := newProcessingEngine(binPath, []string{})
 		if err != nil {
-			per.StateChange("Failed", err)
+			per.StateChange(per, "Failed", err)
 			return err
 		}
 		per.ProcessingEngines = append(per.ProcessingEngines, pe)
@@ -101,16 +108,13 @@ func (per *ProcessingEngineRunner) run() error {
 		if err != nil {
 			return err
 		}
-		// ObserverCallback to run per.RecalculateStateAndError()
-		pe.RegisterObserverCallback(
-			func(oldState string, oldError error, xstate *xstate.XState) error {
-				per._recalculateStateAndError(pe)
-				return nil
-			},
-		)
 		err = pe.run()
+		err2 := per.reload(per) // reload object from db
+		if err2 != nil {
+			return err2
+		}
 		if err != nil {
-			per.StateChange("Failed", err)
+			per.StateChange(per, "Failed", err)
 			return err
 		}
 	} // end for
@@ -136,14 +140,14 @@ func (per *ProcessingEngineRunner) _recalculateStateAndError(pe *ProcessingEngin
 	}
 	switch pe.State {
 	case "Pending":
-		per.StateChange("Pending", nil)
+		per.StateChange(per, "Pending", nil)
 	case "Running":
-		per.StateChange("Running", nil)
+		per.StateChange(per, "Running", nil)
 	case "Failed":
 		// IMPROVEMENT: This error here should be improved to indicate the originating per
-		per.StateChange("Failed", pe.Error())
+		per.StateChange(per, "Failed", pe.Error())
 	case "Completed":
-		per.StateChange("Completed", nil)
+		per.StateChange(per, "Completed", nil)
 	}
 }
 

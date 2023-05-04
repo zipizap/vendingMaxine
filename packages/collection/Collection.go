@@ -66,17 +66,20 @@ func collectionNew(name string) (*Collection, error) {
 	o.Name = name
 	o.ColSelections = append(o.ColSelections, initialColSel)
 	o.save(o)
-
-	o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
-		o.save(o)
-		return nil
-	})
-	err = o.StateChange("Completed", nil)
+	err = o.StateChange(o, "Completed", nil)
 	if err != nil {
-		o.StateChange("Failed", err)
+		o.StateChange(o, "Failed", err)
 		return nil, err
 	}
 	return o, nil
+}
+
+func (o *Collection) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+	err := o.save(o)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // collectionLoad loads from db
@@ -138,16 +141,15 @@ func (c *Collection) appendAndRunColSelection(schema *Schema, jsonInput string, 
 	if err2 != nil {
 		return err2
 	}
-	// ObserverCallback to run c.RecalculateStateAndError()
-	csel.RegisterObserverCallback(
-		func(oldState string, oldError error, xstate *xstate.XState) error {
-			c._recalculateStateAndError(csel)
-			return nil
-		})
 	err = csel.run()
+	err2 = c.reload(c) // reload object from db
 	if err != nil {
 		return err
 	}
+	if err2 != nil {
+		return err2
+	}
+
 	return nil
 }
 
@@ -184,14 +186,14 @@ func (c *Collection) _recalculateStateAndError(csel *ColSelection) {
 	}
 	switch csel.State {
 	case "Pending":
-		c.StateChange("Pending", nil)
+		c.StateChange(c, "Pending", nil)
 	case "Running":
-		c.StateChange("Running", nil)
+		c.StateChange(c, "Running", nil)
 	case "Completed":
-		c.StateChange("Completed", nil)
+		c.StateChange(c, "Completed", nil)
 	case "Failed":
 		// IMPROVEMENT: This error here should be improved to indicate the originating colSelection
-		c.StateChange("Failed", csel.Error())
+		c.StateChange(c, "Failed", csel.Error())
 	default:
 		panic(fmt.Sprintf("Unrecognized csel.State %s", csel.State))
 	}

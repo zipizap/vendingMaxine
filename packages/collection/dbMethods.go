@@ -15,6 +15,10 @@ type gormIDer interface {
 	gormID() uint
 }
 
+type saver interface {
+	save(interface{}) error
+}
+
 func initDb(dbFilepath string) {
 	// Check if the file exists, and create it if it doesn't.
 	if _, err := os.Stat(dbFilepath); os.IsNotExist(err) {
@@ -53,8 +57,10 @@ func (d *dbMethods) reload(i interface{}) error {
 		Collection															0
 		Collection.ColSelections											1
 		Collection.ColSelections.Schema										2
+		Collection.ColSelections.Collection										2
 		Collection.ColSelections.ProcessingEngineRunner						2
 		Collection.ColSelections.ProcessingEngineRunner.ProcessingEngines	3
+		Collection.ColSelections.ProcessingEngineRunner.ColSelection			3
 	*/
 	ider := i.(gormIDer)
 	id := ider.gormID()
