@@ -1,0 +1,127 @@
+{{template "head.html"}}
+<link rel="stylesheet" href="/static/css/spectre.min.css">
+<link rel="stylesheet" href="/static/css/spectre-exp.min.css">
+<link rel="stylesheet" href="/static/css/spectre-icons.min.css">
+<style>
+    .container {
+      max-width:960px;
+      margin: 0 auto
+    }
+  </style>
+
+</head><body>{{template "navbar.html"}}
+    
+  <div class="container">
+    <h1 id="theH1"></h1>
+    <div id="json-editor"></div>
+    <button id="save-btn" class="btn btn-success btn-lg btn-block">Save and update collection</button>
+  </div>
+
+
+  {{template "footer.html"}}{{template "scripts.html"}}
+
+  <script src="/static/js/jsoneditor.min.js"></script>
+  <script>
+    // set collection name from echo template
+    const collectionname = "{{ .ColName }}";
+    $(document).ready(function () {
+        // set theH1
+        $("#theH1").text("Editing Collection: " + collectionname);
+        // API GET /api/v1/collections/{collectionname}
+        $.get(`/api/v1/collections/${collectionname}`, function (data, status) {
+            if (status === "success") {
+                if (data) {
+                    console.log("GET /api/v1/collections/{collectionname} data: \n"); console.log(data);
+                    var jsonInput = JSON.parse(data.jsonInput)
+                    console.log("jsonInput: \n"); console.log(jsonInput);
+                    var schemaJson = JSON.parse(data.schemaJson)
+                    console.log("schemaJson: \n"); console.log(schemaJson);
+
+                    // configure json-editor with response data
+                    JSONEditor.defaults.theme = 'spectre';
+                    JSONEditor.defaults.iconlib = 'spectre';
+                    var editorOptions = {
+                        schema: schemaJson,  
+                        disable_edit_json: true,
+                        disable_properties: true,
+                        disable_array_reorder: true,
+                        array_controls_top: true,
+                        disable_array_delete_all_rows: true,
+                        disable_array_delete_last_row: true,
+                        prompt_before_delete: true
+                    }
+                    if ( JSON.stringify(jsonInput) === '{}' ) {
+                        // jsonInput is empty so we NOT should not set the initial-value
+                        console.log("jsonInput detected === {}, not used as initial value")
+                    } else {
+                        // jsonInput is not empty so we should set it as the initial-value
+                        console.log("jsonInput detected !== {}, going to use it as initial value")
+                        editorOptions.startval = jsonInput
+                    } 
+                    console.log("editorOptions: \n"); console.log(editorOptions);
+                    const jseditorRoot = new JSONEditor(document.getElementById('json-editor'), editorOptions);
+
+                    // -------------------------------------------------------------------------------------------------------
+                    // process 'xtra_zzz' options
+                    // -------------------------------------------------------------------------------------------------------
+                    jseditorRoot.on('ready', function() {
+                        function forEachEditorWithOption(initial_jseditor, option_name, option_value, funcOnMatch) {
+                            if ( initial_jseditor.editors) {
+                                Object.values(initial_jseditor.editors).filter(item => item !== null).forEach(function(editor) {
+                                    // Check if the schema of the editor has `options[option_name] === option_value` 
+                                    if (editor.schema.options && editor.schema.options[option_name] === option_value) {
+                                        console.log("Detected option '" + option_name + "' on '" + editor.path + "'");
+                                        funcOnMatch(editor);
+                                    }
+                                });    
+                            }
+                        };
+
+                        // options.xtra_Immutable
+                        // Any editors containing options.xtra_Immutable == true, will be disabled at page load
+                        // First time an editor is created, the value can be set, and after it becomes immutable
+                        forEachEditorWithOption(jseditorRoot, 'xtra_Immutable', true, function(ed) {
+                            ed.disable();
+                        });
+                    });
+                    // -------------------------------------------------------------------------------------------------------
+
+
+                    // add click event listener to save button
+                    $('#save-btn').on('click', function () {
+                        var jsonOutput = jseditorRoot.getValue()
+                        console.log("jsonOutput: \n"); console.log(jsonOutput);
+                        // API PUT /api/v1/collections/{collectionname} 
+                        $.ajax({
+                            url: `/api/v1/collections/${collectionname}`,
+                            type: 'PUT',
+                            data: JSON.stringify({
+                                jsonInput: data.jsonInput,
+                                jsonOutput: JSON.stringify(jsonOutput),
+                                schemaJson: data.schemaJson
+                            }),
+                            contentType: 'application/json; charset=utf-8',
+                            dataType: 'json',
+                            success: function(resData, resTextStatus, resJqXhr) {
+                                // // Show the HTTP response code and response body to the user
+                                // alert("" + resTextStatus + " - " + resData);
+                                window.open('/collections', "_self");
+                            },
+                            error: function(xhr, status, error) {
+                                // Show an error message and response body to the user
+                                var responseBody = xhr.responseText;
+                                alert(status + ' - ' + responseBody);
+                            }
+                        });
+                    });
+                } else {
+                    alert("Error: No data received from server");
+                }
+            } else {
+                alert(`Error: ${status}`);
+            }
+        });
+    });
+  </script>
+
+</body></html>

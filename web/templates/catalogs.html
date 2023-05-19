@@ -1,0 +1,62 @@
+{{template "head.html"}}</head><body>{{template "navbar.html"}}
+    
+  <div class="container">
+    <h1>Catalogs</h1>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Deprecated?</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <!-- Table rows will be dynamically added here -->
+      </tbody>
+    </table>
+
+    </div>
+    <p></p>
+  </div>
+
+  {{template "footer.html"}}{{template "scripts.html"}}
+  
+  <!-- every 5secs: get api data and update table -->
+  <script>
+    $(document).ready(function() {
+    function getDataAndRefreshTable() {
+        $.ajax({
+        type: "GET",
+        url: "/api/v1/catalogs",
+        dataType: "json",
+        success: function(response) {
+            updateTable(response);
+        },
+        error: function(xhr, status, error) {
+            console.error("API Error:", error);
+        }
+        });
+    }
+
+    function updateTable(data) {
+        var tableBody = $("#table-body");
+        tableBody.empty(); // Clear existing rows
+
+        $.each(data, function(index, element) {
+        var row = $("<tr>");
+        $("<td>").text(element.name).appendTo(row);
+        $("<td>").text(element.deprecated).appendTo(row);
+        tableBody.append(row);
+        });
+    }
+
+    // Initial table load
+    getDataAndRefreshTable();
+
+    // Refresh table every 30 seconds
+    setInterval(function() {
+        getDataAndRefreshTable();
+    }, 30000);
+    });
+  </script>
+  
+</body></html>

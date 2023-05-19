@@ -15,12 +15,8 @@ type gormIDer interface {
 	gormID() uint
 }
 
-type saver interface {
-	save(interface{}) error
-}
-
 func initDb(dbFilepath string) {
-	slog.Info("Check if the dbFilepath '%s' exists, and create it if it doesn't", dbFilepath)
+	slog.Infof("Check if the dbFilepath '%s' exists, and create it if it doesn't", dbFilepath)
 	if _, err := os.Stat(dbFilepath); os.IsNotExist(err) {
 		file, err := os.Create(dbFilepath)
 		if err != nil {
@@ -34,11 +30,11 @@ func initDb(dbFilepath string) {
 	if err != nil {
 		slog.Fatalf("failed to connect database '%s'", dbFilepath)
 	}
+	db.AutoMigrate(&Blob{})
+	db.AutoMigrate(&Catalog{})
 	db.AutoMigrate(&Collection{})
 	db.AutoMigrate(&ColSelection{})
 	db.AutoMigrate(&ProcessingEngineRunner{})
-	db.AutoMigrate(&ProcessingEngine{})
-	db.AutoMigrate(&Schema{})
 }
 
 type dbMethods struct{}
@@ -46,41 +42,46 @@ type dbMethods struct{}
 func (d *dbMethods) save(i interface{}) error {
 	return db.Save(i).Error
 }
-func (d *dbMethods) delete(i interface{}) error {
-	return db.Delete(i).Error
-}
+
+// func (d *dbMethods) delete(i interface{}) error {
+// 	return db.Delete(i).Error
+// }
 
 // i should be pointer to object (i = &object)
 func (d *dbMethods) reload(i interface{}) error {
 	/*
-		GORM Nested Preloading
-		Collection															0
-		Collection.ColSelections											1
-		Collection.ColSelections.Schema										2
-		Collection.ColSelections.Collection										2
-		Collection.ColSelections.ProcessingEngineRunner						2
-		Collection.ColSelections.ProcessingEngineRunner.ProcessingEngines	3
-		Collection.ColSelections.ProcessingEngineRunner.ColSelection			3
-	*/
+			GORM Nested Preloading
+			Collection																0
+			Collection.Catalog											        1
+			Collection.ColSelections											1
+			Collection.ColSelections.Collection										2
+			Collection.ColSelections.Catalog										2
+			Collection.ColSelections.ProcessingEngineRunner							2
+			Collection.ColSelections.ProcessingEngineRunner.ColSelection		3
+
+			Blob                                                                    0
+	.	*/
 	ider := i.(gormIDer)
 	id := ider.gormID()
 
 	switch i.(type) {
 	case *Collection:
 		return db.
-			Preload(clause.Associations).    // direct-1-level-deep-fields are loaded
-			Preload("ColSelections.Schema"). // 2orMore-level-deep-fields need explicit "nested preloading" for each deep association
+			Preload(clause.Associations).        // direct-1-level-deep-fields are loaded
+			Preload("ColSelections.Collection"). // 2orMore-level-deep-fields need explicit "nested preloading" for each deep association
+			Preload("ColSelections.Catalog").
 			Preload("ColSelections.ProcessingEngineRunner").
-			Preload("ColSelections.ProcessingEngineRunner.ProcessingEngines").
+			Preload("ColSelections.ProcessingEngineRunner.ColSelection").
 			First(i, "id = ?", id).Error
 	case *ColSelection:
 		return db.
-			Preload(clause.Associations). // direct-1-level-deep-fields are loaded
-			Preload("ProcessingEngineRunner.ProcessingEngines").
+			Preload(clause.Associations).                   // direct-1-level-deep-fields are loaded
+			Preload("ProcessingEngineRunner.ColSelection"). // 2orMore-level-deep-fields need explicit "nested preloading" for each deep association
 			First(i, "id = ?", id).Error
+
 	default:
-		// Schema and ProcessineEngineRunner dont have a 2-level-deep-field nested-association
-		// So clause.Associations is enough to preload them
+		// ProcessineEngineRunner, Catalog, Blob, ...
+		// These dont have a 2-level-deep-field nested-association, so clause.Associations is enough to preload them
 		return db.
 			Preload(clause.Associations). // direct-1-level-deep-fields are loaded
 			First(i, "id = ?", id).Error

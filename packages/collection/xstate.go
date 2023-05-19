@@ -58,41 +58,26 @@ func (x *XState) error() error {
 }
 
 func (x *XState) stateChange(i stateChangePostHandleXStater, nextState string, nextError error) error {
+	// copy oldState, oldError
 	oldState := x.State
 	oldError := x.error()
-	x.State = nextState
-	if nextError != nil {
-		x.ErrorString = nextError.Error()
-	} else {
-		x.ErrorString = ""
+
+	// set x.State and x.ErrorString
+	{
+		x.State = nextState
+		if nextError != nil {
+			x.ErrorString = nextError.Error()
+		} else {
+			x.ErrorString = ""
+		}
 	}
-	err := i.stateChangePostHandleXState(oldState, oldError, x)
-	if err != nil {
-		return err
+
+	// call i.stateChangePostHandleXState(oldState, oldError, x)
+	{
+		err := i.stateChangePostHandleXState(oldState, oldError, x)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
-
-// type XStateObserverCallback func(oldState string, oldError error, xstate *XState) error
-//
-// func (x *XState) RegisterObserverCallback(xso XStateObserverCallback) {
-// 	x.observerCallbacks = append(x.observerCallbacks, xso)
-// }
-//
-// func (x *XState) StateChange(nextState string, nextError error) error {
-// 	oldState := x.State
-// 	oldError := x.Error()
-// 	x.State = nextState
-// 	if nextError != nil {
-// 		x.ErrorString = nextError.Error()
-// 	} else {
-// 		x.ErrorString = ""
-// 	}
-// 	for _, a_callback := range x.observerCallbacks {
-// 		err := a_callback(oldState, oldError, x)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }

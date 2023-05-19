@@ -1,0 +1,92 @@
+{
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "title": "Select your products",
+    "type": "object",
+    "default": {},
+    "required": [
+      "unit-services"
+    ],
+    "properties": {
+      "info": {
+        "type": "info",
+        "title": "Warning",
+        "description": "Work in progress. Dont use at your own risk :)"
+      },
+      "unit-services": {
+        "title": "UnitServices",
+        "type": "array",
+        "maxItems": 1,
+        "default": [],
+        "items": {
+          "title": "UnitService",
+          "headerTemplate": "{{ self.name }}",
+          "type": "object",
+          "default": {},
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "default": "",
+              "title": "The unit-service name",
+              "examples": [
+                "my-uservice"
+              ],
+              "options": {
+                "infoText": "Your full name"
+              }
+            },
+            "sshkeys": {
+              "title": "sshkeys",
+              "type": "array",
+              "default": [],
+              "items": {
+                "title": "sshkey",
+                "headerTemplate": "[sshkey] {{ self.name }}",
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "default": "",
+                    "pattern": "^.*$"
+                  },
+                  "someProp": {
+                    "title": "someProp",
+                    "type": "string",
+                    "default": "",
+                    "pattern": "^.*$"
+                  }
+                }
+              }
+            },
+            "mongo-dbs": {
+              "title": "Mongo-dbs",
+              "type": "array",
+              "default": [],
+              "items": {
+                "title": "Mongodb",
+                "headerTemplate": "[mongosdb] {{ self.name }}",
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "title": "Name",
+                    "type": "string",
+                    "default": "",
+                    "pattern": "^.*$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
