@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"vendingMaxine/packages/xstate"
 
 	"gorm.io/gorm"
 )
@@ -17,7 +16,7 @@ type Collection struct {
 	Name          string          `gorm:"unique,uniqueIndex,not null"`
 	ColSelections []*ColSelection // relationship 1Collection-to-manyColSelections
 	dbMethods
-	xstate.XState `gorm:"embedded"`
+	XState `gorm:"embedded"`
 }
 
 func collectionNew(name string) (*Collection, error) {
@@ -25,7 +24,7 @@ func collectionNew(name string) (*Collection, error) {
 	//
 	//   - call
 	//
-	//     o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
+	//     o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
 	//     o.Save(o); return nil
 	//     }
 	//
@@ -66,17 +65,21 @@ func collectionNew(name string) (*Collection, error) {
 	o.Name = name
 	o.ColSelections = append(o.ColSelections, initialColSel)
 	o.save(o)
-
-	o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
-		o.save(o)
-		return nil
-	})
-	err = o.StateChange("Completed", nil)
+	err = o.stateChange(o, "Completed", nil)
 	if err != nil {
-		o.StateChange("Failed", err)
+		o.stateChange(o, "Failed", err)
 		return nil, err
 	}
 	return o, nil
+}
+
+// interface stateChangePostHandleXStater
+func (o *Collection) stateChangePostHandleXState(oldState string, oldError error, newXstate *XState) error {
+	err := o.save(o)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // collectionLoad loads from db
@@ -134,20 +137,19 @@ func (c *Collection) appendAndRunColSelection(schema *Schema, jsonInput string, 
 		return err
 	}
 	c.ColSelections = append(c.ColSelections, csel)
-	err = c.save(c)
-	if err != nil {
-		return err
+	err2 := c.save(c)
+	if err2 != nil {
+		return err2
 	}
-	// ObserverCallback to run c.RecalculateStateAndError()
-	csel.RegisterObserverCallback(
-		func(oldState string, oldError error, xstate *xstate.XState) error {
-			c._recalculateStateAndError(csel)
-			return nil
-		})
 	err = csel.run()
+	err2 = c.reload(c) // reload object from db
 	if err != nil {
 		return err
 	}
+	if err2 != nil {
+		return err2
+	}
+
 	return nil
 }
 
@@ -174,7 +176,9 @@ func (c *Collection) canBeUpdated() error {
 //	  "Failed"/error                 =>  "Failed"/error
 //	Use c.StateChange(newState, newError)
 func (c *Collection) _recalculateStateAndError(csel *ColSelection) {
-	_ = c.reload(c) // reload object from db
+	_ = c.reload(c)       // reload object from db
+	_ = csel.reload(csel) // reload object from db
+
 	// skip if csel != cs (cs := c.ColSelections[-1])
 	cs := c.ColSelections[len(c.ColSelections)-1]
 	if cs.ID != csel.ID {
@@ -182,14 +186,14 @@ func (c *Collection) _recalculateStateAndError(csel *ColSelection) {
 	}
 	switch csel.State {
 	case "Pending":
-		c.StateChange("Pending", nil)
+		c.stateChange(c, "Pending", nil)
 	case "Running":
-		c.StateChange("Running", nil)
+		c.stateChange(c, "Running", nil)
 	case "Completed":
-		c.StateChange("Completed", nil)
+		c.stateChange(c, "Completed", nil)
 	case "Failed":
 		// IMPROVEMENT: This error here should be improved to indicate the originating colSelection
-		c.StateChange("Failed", csel.Error())
+		c.stateChange(c, "Failed", csel.error())
 	default:
 		panic(fmt.Sprintf("Unrecognized csel.State %s", csel.State))
 	}

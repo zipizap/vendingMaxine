@@ -5,41 +5,39 @@ import (
 	"vendingMaxine/packages/config"
 
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
-func init() {
+var f *collection.Facilitator
+var slog *zap.SugaredLogger
+
+func Init_slog() error {
+	logger, err := zap.NewProduction()
+	if err != nil {
+		return err
+	}
+	defer logger.Sync() // flushes buffer, if any
+	slog = logger.Sugar()
+	slog.Info("Initialized logger")
+	return nil
 	/*
-			# PRECEDENCE: ./config.yaml  >  env-vars  >  InitViperConfig()::defaultValues
-			# ./config.yaml
-
-				processingengines:
-				dirpath: "./processingEngines"
-
-				db:
-				filepath: "./sqlite.db"
-
-			# env-vars
-
-				VD_PROCESSINGENGINES_DIRPATH="./test/processingEngines" VD_DB_FILEPATH="./test/sqlite.db" go run main.go
-
-			# How to read config-values in code:
-
-		    // initialize
-		    InitViperConfig(
-				"config",
-				".",
-				"VD",
-				map[string]string {
-					"processingengines.dirpath": "./processingEngines",
-					"db.filepath": "./sqlite.db",
-				},
-			)
-
-			// in any moment, read config values:
-			dbPeDirpath =: viper.GetString("processingengines.dirpath")
-		    dbFilepath =: viper.GetString("db.filepath")
-
+		slog.Infow("failed to fetch URL",
+		  // Structured context as loosely typed key-value pairs.
+		  "url", url,
+		  "attempt", 3,
+		  "backoff", time.Second,
+		)
+		slog.Infof("Failed to fetch URL: %s", url
 	*/
+}
+
+func init() {
+	err := Init_slog()
+	if err != nil {
+		panic(err)
+	}
+
+	slog.Info("Config - Initializing config from ./config.yaml or env-vars VD_PROCESSINGENGINES_DIRPATH,VD_DB_FILEPATH")
 	config.InitViperConfig("config", ".", "VD",
 		map[string]string{
 			"processingengines.dirpath": "./processingEngines",
@@ -47,9 +45,16 @@ func init() {
 		})
 	processingEnginesDirpaths := viper.GetString("processingengines.dirpath")
 	dbFilepath := viper.GetString("db.filepath")
+	slog.Infof("Config - processingengines.dirpath: %s", processingEnginesDirpaths)
+	slog.Infof("Config - db.filepath: %s", dbFilepath)
 
-	f, _ := collection.NewFacilitator()
-	f.InitSetup(dbFilepath, processingEnginesDirpaths)
+	slog.Info("Facilitator - creating new")
+	f, err = collection.NewFacilitator()
+	if err != nil {
+		panic(err)
+	}
+	slog.Info("Facilitator - initializing")
+	f.InitSetup(dbFilepath, processingEnginesDirpaths, slog)
 }
 
 func main() {

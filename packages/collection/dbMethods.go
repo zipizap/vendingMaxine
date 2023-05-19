@@ -15,12 +15,16 @@ type gormIDer interface {
 	gormID() uint
 }
 
+type saver interface {
+	save(interface{}) error
+}
+
 func initDb(dbFilepath string) {
-	// Check if the file exists, and create it if it doesn't.
+	slog.Info("Check if the dbFilepath '%s' exists, and create it if it doesn't", dbFilepath)
 	if _, err := os.Stat(dbFilepath); os.IsNotExist(err) {
 		file, err := os.Create(dbFilepath)
 		if err != nil {
-			panic(fmt.Sprintf("failed to create database file '%s'", dbFilepath))
+			slog.Fatalf(fmt.Sprintf("failed to create database file '%s'", dbFilepath))
 		}
 		file.Close()
 	}
@@ -28,7 +32,7 @@ func initDb(dbFilepath string) {
 	var err error
 	db, err = gorm.Open(sqlite.Open(dbFilepath), &gorm.Config{})
 	if err != nil {
-		panic(fmt.Sprintf("failed to connect database '%s'", dbFilepath))
+		slog.Fatalf("failed to connect database '%s'", dbFilepath)
 	}
 	db.AutoMigrate(&Collection{})
 	db.AutoMigrate(&ColSelection{})
@@ -53,8 +57,10 @@ func (d *dbMethods) reload(i interface{}) error {
 		Collection															0
 		Collection.ColSelections											1
 		Collection.ColSelections.Schema										2
+		Collection.ColSelections.Collection										2
 		Collection.ColSelections.ProcessingEngineRunner						2
 		Collection.ColSelections.ProcessingEngineRunner.ProcessingEngines	3
+		Collection.ColSelections.ProcessingEngineRunner.ColSelection			3
 	*/
 	ider := i.(gormIDer)
 	id := ider.gormID()

@@ -1,6 +1,10 @@
 package collection
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.uber.org/zap"
+)
 
 // Use the Facilitator functions, and avoid messing with anything else inside the package :)
 //
@@ -14,7 +18,8 @@ func NewFacilitator() (*Facilitator, error) {
 }
 
 // InitSetup function must be called before using other functions of this package
-func (f *Facilitator) InitSetup(dbFilepath string, processingEnginesDirpath string) {
+func (f *Facilitator) InitSetup(dbFilepath string, processingEnginesDirpath string, zapSugaredLogger *zap.SugaredLogger) {
+	initSlog(zapSugaredLogger)
 	initDb(dbFilepath)
 	initProcessingEngineRunner(processingEnginesDirpath)
 }
@@ -135,12 +140,14 @@ func (f *Facilitator) SchemaEdit_SaveAndApplyToAllCollections(newSchemaVersionNa
 		allowSchemaUpdate := true
 		schemaLatest, jsonInput, err := f._collectionEdit_Prepinfo(a_col_Name, allowSchemaUpdate)
 		if err != nil {
-			return fmt.Errorf("SchemaUpdate interrupted by error: %v", err)
+			//TODO: internally log this somehow, its important when a schema-update makes a collection fail!
+			fmt.Printf("SchemaUpdate got error: %v \n", err)
 		}
 		jsonOutput := jsonInput
 		err = f.CollectionEdit_Save(a_col_Name, schemaLatest, jsonInput, jsonOutput, requestingUser)
 		if err != nil {
-			return fmt.Errorf("SchemaUpdate interrupted by error: %v", err)
+			//TODO: internally log this somehow, its important when a schema-update makes a collection fail!
+			fmt.Printf("SchemaUpdate got error: %v \n", err)
 		}
 	}
 	return nil

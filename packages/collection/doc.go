@@ -11,7 +11,8 @@ How to use this package in your code:
 	// First call f.InitSetup()
 	dbFilepath := "./sqlite.db"
 	processingEnginesDirpath := "./processingEngines"
-	f.InitSetup(dbFilepath, processingEnginesDirpath)
+	zapSugaredLogger := myzapSuggaredLogger
+	f.InitSetup(dbFilepath, processingEnginesDirpath, zapSugaredLogger)
 
 
 	// Then call any other Facilitator methods, ex:

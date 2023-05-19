@@ -3,6 +3,8 @@ package collection
 import (
 	"os"
 	"testing"
+
+	"go.uber.org/zap"
 )
 
 var prepForTestProcessingEngineOnlyOnceFlag bool
@@ -17,7 +19,9 @@ func prepForTestProcessingEngine(t *testing.T) {
 	dbFilepath := "./sqlite.db"
 	processingEnginesDirpath := "./processingEngines"
 	f, _ := NewFacilitator()
-	f.InitSetup(dbFilepath, processingEnginesDirpath)
+	logger, _ := zap.NewProduction()
+	slog = logger.Sugar()
+	f.InitSetup(dbFilepath, processingEnginesDirpath, slog)
 	db.Exec("DELETE FROM collections")
 	db.Exec("DELETE FROM col_selections")
 	db.Exec("DELETE FROM processing_engine_runners")
@@ -81,8 +85,8 @@ func TestProcessingEngine_Run(t *testing.T) {
 		t.Errorf("Expected State to be Completed, but got %s", pe.State)
 	}
 
-	if pe.Error() != nil {
-		t.Errorf("Expected Error to be nil, but got %s", pe.Error().Error())
+	if pe.error() != nil {
+		t.Errorf("Expected Error to be nil, but got %s", pe.error().Error())
 	}
 }
 
@@ -110,7 +114,7 @@ func TestProcessingEngine_Run_Failed(t *testing.T) {
 		t.Errorf("Expected State to be Failed, but got %s", pe.State)
 	}
 
-	if pe.Error() == nil {
+	if pe.error() == nil {
 		t.Errorf("Expected Error to be non-nil, but got nil")
 	}
 }
@@ -134,7 +138,7 @@ func TestProcessingEngine_Run_Failed_ExitCode(t *testing.T) {
 		t.Errorf("Expected State to be Failed, but got %s", pe.State)
 	}
 
-	if pe.Error() == nil {
+	if pe.error() == nil {
 		t.Errorf("Expected Error to be non-nil, but got nil")
 	}
 
