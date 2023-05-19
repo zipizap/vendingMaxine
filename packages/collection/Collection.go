@@ -74,6 +74,7 @@ func collectionNew(name string) (*Collection, error) {
 	return o, nil
 }
 
+// interface StateChangePostHandler
 func (o *Collection) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
 	err := o.save(o)
 	if err != nil {

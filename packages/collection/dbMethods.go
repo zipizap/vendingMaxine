@@ -20,11 +20,11 @@ type saver interface {
 }
 
 func initDb(dbFilepath string) {
-	// Check if the file exists, and create it if it doesn't.
+	slog.Info("Check if the dbFilepath '%s' exists, and create it if it doesn't", dbFilepath)
 	if _, err := os.Stat(dbFilepath); os.IsNotExist(err) {
 		file, err := os.Create(dbFilepath)
 		if err != nil {
-			panic(fmt.Sprintf("failed to create database file '%s'", dbFilepath))
+			slog.Fatalf(fmt.Sprintf("failed to create database file '%s'", dbFilepath))
 		}
 		file.Close()
 	}
@@ -32,7 +32,7 @@ func initDb(dbFilepath string) {
 	var err error
 	db, err = gorm.Open(sqlite.Open(dbFilepath), &gorm.Config{})
 	if err != nil {
-		panic(fmt.Sprintf("failed to connect database '%s'", dbFilepath))
+		slog.Fatalf("failed to connect database '%s'", dbFilepath)
 	}
 	db.AutoMigrate(&Collection{})
 	db.AutoMigrate(&ColSelection{})

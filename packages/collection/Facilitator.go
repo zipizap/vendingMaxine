@@ -1,6 +1,10 @@
 package collection
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.uber.org/zap"
+)
 
 // Use the Facilitator functions, and avoid messing with anything else inside the package :)
 //
@@ -14,7 +18,8 @@ func NewFacilitator() (*Facilitator, error) {
 }
 
 // InitSetup function must be called before using other functions of this package
-func (f *Facilitator) InitSetup(dbFilepath string, processingEnginesDirpath string) {
+func (f *Facilitator) InitSetup(dbFilepath string, processingEnginesDirpath string, zapSugaredLogger *zap.SugaredLogger) {
+	initSlog(zapSugaredLogger)
 	initDb(dbFilepath)
 	initProcessingEngineRunner(processingEnginesDirpath)
 }

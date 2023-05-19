@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 // Ex: reprepForTestCelSelection(t, "../../tests/ProcessingEngineRunner/processingEngines")
@@ -14,7 +15,9 @@ func reprepForTestCelSelection(t *testing.T, processingEnginesDirpath string) {
 	_ = os.Remove(dbFilepath)
 
 	f, _ := NewFacilitator()
-	f.InitSetup(dbFilepath, processingEnginesDirpath)
+	logger, _ := zap.NewProduction()
+	slog = logger.Sugar()
+	f.InitSetup(dbFilepath, processingEnginesDirpath, slog)
 	db.Exec("DELETE FROM collections")
 	db.Exec("DELETE FROM col_selections")
 	db.Exec("DELETE FROM processing_engine_runners")

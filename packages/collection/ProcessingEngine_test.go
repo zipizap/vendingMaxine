@@ -3,6 +3,8 @@ package collection
 import (
 	"os"
 	"testing"
+
+	"go.uber.org/zap"
 )
 
 var prepForTestProcessingEngineOnlyOnceFlag bool
@@ -17,7 +19,9 @@ func prepForTestProcessingEngine(t *testing.T) {
 	dbFilepath := "./sqlite.db"
 	processingEnginesDirpath := "./processingEngines"
 	f, _ := NewFacilitator()
-	f.InitSetup(dbFilepath, processingEnginesDirpath)
+	logger, _ := zap.NewProduction()
+	slog = logger.Sugar()
+	f.InitSetup(dbFilepath, processingEnginesDirpath, slog)
 	db.Exec("DELETE FROM collections")
 	db.Exec("DELETE FROM col_selections")
 	db.Exec("DELETE FROM processing_engine_runners")
