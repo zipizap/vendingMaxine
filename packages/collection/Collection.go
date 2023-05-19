@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"vendingMaxine/packages/xstate"
 
 	"gorm.io/gorm"
 )
@@ -17,7 +16,7 @@ type Collection struct {
 	Name          string          `gorm:"unique,uniqueIndex,not null"`
 	ColSelections []*ColSelection // relationship 1Collection-to-manyColSelections
 	dbMethods
-	xstate.XState `gorm:"embedded"`
+	XState `gorm:"embedded"`
 }
 
 func collectionNew(name string) (*Collection, error) {
@@ -25,7 +24,7 @@ func collectionNew(name string) (*Collection, error) {
 	//
 	//   - call
 	//
-	//     o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
+	//     o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
 	//     o.Save(o); return nil
 	//     }
 	//
@@ -66,16 +65,16 @@ func collectionNew(name string) (*Collection, error) {
 	o.Name = name
 	o.ColSelections = append(o.ColSelections, initialColSel)
 	o.save(o)
-	err = o.StateChange(o, "Completed", nil)
+	err = o.stateChange(o, "Completed", nil)
 	if err != nil {
-		o.StateChange(o, "Failed", err)
+		o.stateChange(o, "Failed", err)
 		return nil, err
 	}
 	return o, nil
 }
 
-// interface StateChangePostHandler
-func (o *Collection) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+// interface stateChangePostHandleXStater
+func (o *Collection) stateChangePostHandleXState(oldState string, oldError error, newXstate *XState) error {
 	err := o.save(o)
 	if err != nil {
 		return err
@@ -187,14 +186,14 @@ func (c *Collection) _recalculateStateAndError(csel *ColSelection) {
 	}
 	switch csel.State {
 	case "Pending":
-		c.StateChange(c, "Pending", nil)
+		c.stateChange(c, "Pending", nil)
 	case "Running":
-		c.StateChange(c, "Running", nil)
+		c.stateChange(c, "Running", nil)
 	case "Completed":
-		c.StateChange(c, "Completed", nil)
+		c.stateChange(c, "Completed", nil)
 	case "Failed":
 		// IMPROVEMENT: This error here should be improved to indicate the originating colSelection
-		c.StateChange(c, "Failed", csel.Error())
+		c.stateChange(c, "Failed", csel.error())
 	default:
 		panic(fmt.Sprintf("Unrecognized csel.State %s", csel.State))
 	}

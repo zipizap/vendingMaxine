@@ -2,7 +2,6 @@ package collection
 
 import (
 	"fmt"
-	"vendingMaxine/packages/xstate"
 
 	"gorm.io/gorm"
 )
@@ -21,12 +20,12 @@ type ColSelection struct {
 	RequestingUser         string
 	ProcessingEngineRunner *ProcessingEngineRunner
 	dbMethods
-	xstate.XState `gorm:"embedded"`
+	XState `gorm:"embedded"`
 }
 
 func newColSelection(schema *Schema, jsonInput string, jsonOutput string, requestingUser string) (*ColSelection, error) {
 	// newColSelection method should create a new object o and
-	//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *xstate.XState) error {
+	//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
 	//     o.Save(o); return nil
 	//     }
 	//   - set the new object fields from its corresponding arguments
@@ -54,16 +53,16 @@ func newColSelection(schema *Schema, jsonInput string, jsonOutput string, reques
 		RequestingUser: requestingUser,
 	}
 
-	err = o.StateChange(o, "Pending", nil)
+	err = o.stateChange(o, "Pending", nil)
 	if err != nil {
-		o.StateChange(o, "Failed", err)
+		o.stateChange(o, "Failed", err)
 		return nil, err
 	}
 
 	return o, nil
 }
 
-func (o *ColSelection) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+func (o *ColSelection) stateChangePostHandleXState(oldState string, oldError error, newXstate *XState) error {
 	err := o.save(o)
 	if err != nil {
 		return err
@@ -91,18 +90,18 @@ func (csel *ColSelection) run() error {
 	csel.ProcessingEngineRunner = per
 	err2 := csel.save(csel)
 	if err != nil {
-		csel.StateChange(csel, "Failed", err)
+		csel.stateChange(csel, "Failed", err)
 		return err
 	}
 	if err2 != nil {
-		csel.StateChange(csel, "Failed", err2)
+		csel.stateChange(csel, "Failed", err2)
 		return err2
 	}
 
 	err = per.run()
 	err2 = csel.reload(csel) // reload object from db
 	if err != nil {
-		csel.StateChange(csel, "Failed", err)
+		csel.stateChange(csel, "Failed", err)
 		return err
 	}
 	if err2 != nil {
@@ -130,14 +129,14 @@ func (csel *ColSelection) _recalculateStateAndError(per *ProcessingEngineRunner)
 	}
 	switch per.State {
 	case "Pending":
-		csel.StateChange(csel, "Pending", nil)
+		csel.stateChange(csel, "Pending", nil)
 	case "Running":
-		csel.StateChange(csel, "Running", nil)
+		csel.stateChange(csel, "Running", nil)
 	case "Completed":
-		csel.StateChange(csel, "Completed", nil)
+		csel.stateChange(csel, "Completed", nil)
 	case "Failed":
 		// IMPROVEMENT: This error here should be improved to indicate the originating per
-		csel.StateChange(csel, "Failed", per.Error())
+		csel.stateChange(csel, "Failed", per.error())
 	default:
 		panic(fmt.Sprintf("Unrecognized per.State %s", per.State))
 	}

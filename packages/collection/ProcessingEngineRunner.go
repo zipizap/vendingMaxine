@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
-	"vendingMaxine/packages/xstate"
 
 	"gorm.io/gorm"
 )
@@ -24,7 +23,7 @@ type ProcessingEngineRunner struct {
 	ColSelection      *ColSelection
 	ProcessingEngines []*ProcessingEngine
 	dbMethods
-	xstate.XState `gorm:"embedded"`
+	XState `gorm:"embedded"`
 }
 
 func newProcessingEngineRunner() (*ProcessingEngineRunner, error) {
@@ -41,14 +40,14 @@ func newProcessingEngineRunner() (*ProcessingEngineRunner, error) {
 	//   - return the created object o
 
 	o := &ProcessingEngineRunner{}
-	err := o.StateChange(o, "Pending", nil)
+	err := o.stateChange(o, "Pending", nil)
 	if err != nil {
-		o.StateChange(o, "Failed", err)
+		o.stateChange(o, "Failed", err)
 		return nil, err
 	}
 	return o, nil
 }
-func (o *ProcessingEngineRunner) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+func (o *ProcessingEngineRunner) stateChangePostHandleXState(oldState string, oldError error, newXstate *XState) error {
 	err := o.save(o)
 	if err != nil {
 		return err
@@ -81,7 +80,7 @@ func (per *ProcessingEngineRunner) run() error {
 	{
 		files, err := ioutil.ReadDir(binpathsDir)
 		if err != nil {
-			per.StateChange(per, "Failed", err)
+			per.stateChange(per, "Failed", err)
 			return err
 		}
 
@@ -100,7 +99,7 @@ func (per *ProcessingEngineRunner) run() error {
 	for _, binPath := range binPaths {
 		pe, err := newProcessingEngine(binPath, []string{})
 		if err != nil {
-			per.StateChange(per, "Failed", err)
+			per.stateChange(per, "Failed", err)
 			return err
 		}
 		per.ProcessingEngines = append(per.ProcessingEngines, pe)
@@ -114,7 +113,7 @@ func (per *ProcessingEngineRunner) run() error {
 			return err2
 		}
 		if err != nil {
-			per.StateChange(per, "Failed", err)
+			per.stateChange(per, "Failed", err)
 			return err
 		}
 	} // end for
@@ -140,14 +139,14 @@ func (per *ProcessingEngineRunner) _recalculateStateAndError(pe *ProcessingEngin
 	}
 	switch pe.State {
 	case "Pending":
-		per.StateChange(per, "Pending", nil)
+		per.stateChange(per, "Pending", nil)
 	case "Running":
-		per.StateChange(per, "Running", nil)
+		per.stateChange(per, "Running", nil)
 	case "Failed":
 		// IMPROVEMENT: This error here should be improved to indicate the originating per
-		per.StateChange(per, "Failed", pe.Error())
+		per.stateChange(per, "Failed", pe.error())
 	case "Completed":
-		per.StateChange(per, "Completed", nil)
+		per.stateChange(per, "Completed", nil)
 	}
 }
 

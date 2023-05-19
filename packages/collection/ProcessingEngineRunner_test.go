@@ -35,7 +35,7 @@ func TestNewProcessingEngineRunner(t *testing.T) {
 	}
 	assert.NotNil(t, per)
 	assert.Equal(t, "Pending", per.State)
-	assert.Nil(t, per.Error())
+	assert.Nil(t, per.error())
 }
 
 // test to create processingEngines[] successfully and in order, with correct state
@@ -67,7 +67,7 @@ func TestProcessingEngineRunner_Run(t *testing.T) {
 	}
 
 	assert.Equal(t, "Completed", per.State)
-	assert.Nil(t, per.Error())
+	assert.Nil(t, per.error())
 }
 
 // second pe fails, should verify per.ErrorString and per.State are correct
@@ -85,12 +85,12 @@ func TestProcessingEngineRunner_1PeFails(t *testing.T) {
 	// first pe should be "Completed" without error
 	first_pe := per.ProcessingEngines[0]
 	assert.Equal(t, "Completed", first_pe.State)
-	assert.Nil(t, first_pe.Error())
+	assert.Nil(t, first_pe.error())
 
 	// second pe should be "Failed" with error
 	second_pe := per.ProcessingEngines[1]
 	assert.Equal(t, "Failed", second_pe.State)
-	assert.NotNil(t, second_pe.Error())
+	assert.NotNil(t, second_pe.error())
 
 	if per.ErrorString != "ProcessingEngine ../../tests/ProcessingEngineRunner/1PeFails/0100.exit1.sh gave exit-code 1" {
 		t.Fatalf("Did not find expected ErrorString")
@@ -384,7 +384,7 @@ func TestProcessingEngineRunner_Xstate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	xs := xstate.XState{State: "test", ErrorString: "test error"}
+	xs := XState{State: "test", ErrorString: "test error"}
 	per.Xstate = xs
 	assert.Equal(t, xs, per.Xstate)
 }

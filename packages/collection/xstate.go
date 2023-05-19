@@ -1,4 +1,4 @@
-package xstate
+package collection
 
 import "fmt"
 
@@ -11,13 +11,13 @@ import (
 
 // 1.1. embed into struct
 type Mys struct {
-  xstate.XState  `gorm:"embedded"`
+  XState  `gorm:"embedded"`
 }
 
 // 1.2. constructor: set initial state
 func NewMys() (*Mys, err) {
 	mys := &Mys{
-		XState: xstate.XState{
+		XState: XState{
 			State: "Initializing",
 		}
 	}
@@ -25,23 +25,23 @@ func NewMys() (*Mys, err) {
 	return mys
 }
 
-// 1.3. define Mys.StateChangePostHandle()
-// - to implement interface StateChangePostHandler
+// 1.3. define Mys.stateChangePostHandleXState()
+// - to implement interface stateChangePostHandleXStater
 // - to make any db.Save() or callback methods from other objects
-func (o *Mys) StateChangePostHandle(oldState string, oldError error, newXstate *xstate.XState) error {
+func (o *Mys) stateChangePostHandleXState(oldState string, oldError error, newXstate *XState) error {
 	o.save(o)
 	p := o.someParentObj
 	return p.StateChange(p, newXstate.State, newXstate.Error())
 }
 
-// 2. Change state when you need (it will implicitly call mys.StateChangePostHandle())
+// 2. Change state when you need (it will implicitly call mys.stateChangePostHandleXState())
 err := mys.StateChange(mys, "Running", nil)
 ...
 
 */
 
-type StateChangePostHandler interface {
-	StateChangePostHandle(oldState string, oldError error, xstate *XState) error
+type stateChangePostHandleXStater interface {
+	stateChangePostHandleXState(oldState string, oldError error, xstate *XState) error
 }
 
 type XState struct {
@@ -49,7 +49,7 @@ type XState struct {
 	ErrorString string // set non-empty when State=="Failed"
 }
 
-func (x *XState) Error() error {
+func (x *XState) error() error {
 	if x.ErrorString == "" {
 		return nil
 	} else {
@@ -57,16 +57,16 @@ func (x *XState) Error() error {
 	}
 }
 
-func (x *XState) StateChange(i StateChangePostHandler, nextState string, nextError error) error {
+func (x *XState) stateChange(i stateChangePostHandleXStater, nextState string, nextError error) error {
 	oldState := x.State
-	oldError := x.Error()
+	oldError := x.error()
 	x.State = nextState
 	if nextError != nil {
 		x.ErrorString = nextError.Error()
 	} else {
 		x.ErrorString = ""
 	}
-	err := i.StateChangePostHandle(oldState, oldError, x)
+	err := i.stateChangePostHandleXState(oldState, oldError, x)
 	if err != nil {
 		return err
 	}
