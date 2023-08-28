@@ -1,0 +1,118 @@
+{
+  "title": "Select products",
+  "description": "See further \u003ca href=\"https://my.internal.wiki.corp/vendingmaxine/catalog-default\" target=\"_blank\"\u003edocumentation in our corporate wiki, in dedicated page detailing these products\u003c/a\u003e ",
+  "type": "object",
+  "properties": {
+    "additional_members_of_AADGroup_DataClients": {
+      "propertyOrder": 1,
+      "title": "AAD-Group 'mycollection_DataClients' members",
+      "type": "object",
+      "properties": {
+        "info": {
+          "propertyOrder": 1,
+          "description": "The 'mycollection_DataClients' AAD-Group members can access data from resources: blob/files from storage accounts, secrets from keyvaults, etc",
+          "type": "info"
+        },
+        "elements": {
+          "propertyOrder": 2,
+          "title": " ",
+          "type": "array",
+          "format": "tabs",
+          "items": {
+            "headerTemplate": "{{ self.alias }}",
+            "type": "object",
+            "format": "grid",
+            "properties": {
+              "alias": {
+                "title": "Internal alias",
+                "description": "An internal alias to remember what this object_id corresponds to",
+                "type": "string",
+                "pattern": "^[a-z0-9- ]+$",
+                "default": "Exs: 'group TeamWhisky' or 'user Siegi' or 'spn cicdWhisky1'"
+              },
+              "object_id": {
+                "default": "Ex: 88888888-4444-4444-4444-121212121212",
+                "description": "Indicate object_id of user, group or spn",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object_id",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "keyvaults": {
+      "propertyOrder": 2,
+      "title": "Keyvaults",
+      "type": "object",
+      "properties": {
+        "elements": {
+          "format": "tabs",
+          "items": {
+            "format": "grid",
+            "headerTemplate": "{{ self.name }}",
+            "properties": {
+              "name": {
+                "description": "Must be lowercase alphanum no-dashes max18char.\u003c/br\u003eOK:  'goodstorage2023'\u003c/br\u003eNOK: 'bad-STA_with-UPCASE_dashes-and_tooLoong",
+                "options": {
+                  "xtra_Immutable": true
+                },
+                "pattern": "^[a-z0-9]{1,18}$",
+                "title": "Keyvault name prefix",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "title": " ",
+          "type": "array"
+        },
+        "info": {
+          "description": "Azure keyvaults safely store secret, keys and certificates. \u003c/br\u003eThe first keyvault is special: must always exist and have name keyvaultname = collectionname (so if collectionName = 'ab-23-c4' then keyvaultname = 'ab-23-c4'",
+          "type": "info"
+        }
+      }
+    },
+    "storageaccounts": {
+      "propertyOrder": 3,
+      "title": "StorageAccounts",
+      "type": "object",
+      "properties": {
+        "elements": {
+          "format": "tabs",
+          "items": {
+            "format": "grid",
+            "headerTemplate": "{{ self.name }}",
+            "properties": {
+              "name": {
+                "description": "Must be lowercase alphanum no-dashes max18char.\u003c/br\u003eOK:  'goodstorage2023'\u003c/br\u003eNOK: 'bad-STA_with-UPCASE_dashes-and_tooLoong",
+                "options": {
+                  "xtra_Immutable": true
+                },
+                "pattern": "^[a-z0-9]{1,18}$",
+                "title": "Storageaccount name prefix",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "title": " ",
+          "type": "array"
+        },
+        "info": {
+          "description": "Azure storageaccounts provide blobs, file-shares and other storage services. \u003c/br\u003eThe first storageaccount is special: must always exist and have name storageaccountname = collectionname-without-any-dashes (so if collectionName = 'ab-23-c4' then storageaccounname = 'ab23c4'",
+          "type": "info"
+        }
+      }
+    }
+  }
+}

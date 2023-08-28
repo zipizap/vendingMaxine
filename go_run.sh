@@ -14,6 +14,10 @@ set -o nounset
 cd "${__dir}"
 export GO111MODULES=on
 [[ -r local_env.source ]] && source local_env.source
-exec go run . ${@}
+./swagger_update.sh
+#exec go run . ${@} 2>&1 
+exec go run . ${@} 2>&1 \
+| hl -g ':200,' -R ':[45][0-9][0-9],' -B '\[PerID[^\]]+\]'  
+
 
 

@@ -1,0 +1,149 @@
+{{template "head.html"}}</head><body>{{template "navbar.html"}}
+    
+  <div class="container">
+    <h1>Collections</h1>
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>State</th>
+          <th>Edit</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <!-- Table rows will be dynamically added here -->
+      </tbody>
+    </table>
+
+    <!-- Button and modal for input box -->
+    <button type="button" class="btn btn-success btn-lg btn-block" id="newCollectionBtn">Create new collection...</button>
+    <div class="modal fade" id="collectionModal" tabindex="-1" role="dialog" aria-labelledby="collectionModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="collectionModalLabel">Enter Collection Name</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Ex:  lowcase-alphanum-dash-nospace-63max</p>
+            <input type="text" class="form-control" id="collectionNameInput" placeholder="Collection Name">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="createCollectionBtn">Create</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p></p>
+  </div>
+
+  {{template "footer.html"}}{{template "scripts.html"}}
+  
+  <!-- every 5secs: get api data and update table -->
+  <script>
+    $(document).ready(function() {
+    function getDataAndRefreshTable() {
+        $.ajax({
+        type: "GET",
+        url: "/api/v1/collections",
+        dataType: "json",
+        success: function(response) {
+            updateTable(response);
+        },
+        error: function(xhr, status, error) {
+            console.error("API Error:", error);
+        }
+        });
+    }
+
+    function updateTable(data) {
+        var tableBody = $("#table-body");
+        tableBody.empty(); // Clear existing rows
+
+        $.each(data, function(index, element) {
+        var row = $("<tr>");
+        $("<td>").text(element.name).appendTo(row);
+        $("<td>").text(element.state).appendTo(row);
+        
+        if (element.state === "Completed" ||
+            element.state === "Failed" ) {
+          var buttonEditCol = $("<button>").attr({
+            type: "button",
+            class: "btn btn-primary"
+          }).text("Edit collection").appendTo($("<td>").appendTo(row));
+          buttonEditCol.click(function() {
+            window.open("/collections/" + element.name, "_self"); 
+          });
+        } else {
+          $("<td>").html('<div class="text-center"><div class="spinner-border text-primary spinner-border-sm" role="status"><span class="visually-hidden"></span></div></div>').appendTo(row);
+        }
+
+        if (element.state === "Completed") {
+          $("<td>").html('<a href="/api/v1/collections/'+encodeURIComponent(element.name)+'/replayable">' + '(Replayable and logs)' + '</a>').appendTo(row);
+        } else if (element.state === "Failed") {
+          $("<td>").html('<a href="/api/v1/collections/'+encodeURIComponent(element.name)+'/replayable">' + element.errorStr + '</a>').appendTo(row);
+        } else {
+          $("<td>").html('<a href="/api/v1/collections/'+encodeURIComponent(element.name)+'/replayable"></a>').appendTo(row);
+        }
+        //$("<td>").text(element.errorStr).appendTo(row);
+        tableBody.append(row);
+        });
+    }
+
+    // Initial table load
+    getDataAndRefreshTable();
+
+    // Refresh table every 5 seconds
+    setInterval(function() {
+        getDataAndRefreshTable();
+    }, 5000);
+    });
+  </script>
+
+  <!-- When button "New collection" is clicked, show modal input and resulting http-response-text, and goto /collections/my-col -->
+  <script>
+    $(document).ready(function() {
+      // Show modal when the button is clicked
+      $('#newCollectionBtn').click(function() {
+        $('#collectionModal').modal('show');
+        $('#collectionNameInput').focus(); // Automatically focus on the input field, however its not working... 
+      });
+
+      // Handle create button click inside the modal
+      $('#createCollectionBtn').click(function() {
+        // Get the collection name from the input box
+        var collectionName = $('#collectionNameInput').val();
+
+        // Make the API call
+        $.ajax({
+          type: 'POST',
+          url: '/api/v1/collections',
+          data: JSON.stringify({
+             name: collectionName,
+             catalogName: "default-0-0-0"
+            }),
+          contentType: 'application/json',
+          success: function(resData, resTextStatus, resJqXhr) {
+            // Show the HTTP response code and response body to the user
+            alert( collectionName + ' : ' + resTextStatus + ' - '  + resData);
+            window.open("/collections/" + collectionName, "_self");
+          },
+          error: function(xhr, status, error) {
+            // Show an error message if the API call fails
+            var responseBody = xhr.responseText;
+            alert(status + ' - ' + responseBody);
+          }
+        });
+
+        // Close the modal
+        $('#collectionModal').modal('hide');
+
+      });
+    });
+  </script>
+
+</body></html>

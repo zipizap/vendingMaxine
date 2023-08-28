@@ -1,12 +1,22 @@
 package collection
 
 import (
-	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
+	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+type CollectionInfo struct {
+	Name        string `json:"name"`
+	CatalogName string `json:"catalogName"`
+	State       string `json:"state"`
+	ErrorStr    string `json:"errorStr"`
+}
 
 // State transitions:
 //   - State string:                  (never "Pending") "Running" > "Completed" or "Failed"
@@ -14,62 +24,68 @@ import (
 type Collection struct {
 	gorm.Model
 	Name          string          `gorm:"unique,uniqueIndex,not null"`
+	Catalog       *Catalog        // relationship manyCollection-to-1Catalog
+	CatalogID     uint            // relationship manyCollection-to-1Catalog
 	ColSelections []*ColSelection // relationship 1Collection-to-manyColSelections
 	dbMethods
 	XState `gorm:"embedded"`
 }
 
-func collectionNew(name string) (*Collection, error) {
-	// CollectionNew method should create a new object `o` and
-	//
-	//   - call
-	//
-	//     o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
-	//     o.Save(o); return nil
-	//     }
-	//
-	//   - set the new object fields from its corresponding arguments
-	//
-	//   - verify if the field .Name is compliant with DNS label standard as defined in RFC 1123 (like pod label-names,
-	//     see https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names),
-	//     and if not compliant then return an error
-	//
-	//   - verify the sql unique constraints, or return an error
-	//
-	//     If inside this method, there is any error at any step, then:
-	//
-	//   - dont call o.StateChange()
-	//
-	//   - dont call o.Save()
-	//
-	//   - just return the error
-	//     If method is executed without errors, then:
-	//
-	//   - call o.StateChange("Completed", nil)
-	//
-	//   - return the created object o
-
-	if !_isValidDNSLabel(name) {
-		return nil, errors.New("invalid DNS label")
+func collectionNew(newCollectionName, catalogName string) (*Collection, error) {
+	// validate newCollectionName
+	{
+		if err := _isValidDNSLabel(newCollectionName); err != nil {
+			return nil, err
+		}
 	}
+
 	// if collection already exists, return error
-	if _, err := collectionLoad(name); err == nil {
-		return nil, fmt.Errorf("Collection %v already exists", name)
+	if _, err := collectionLoad(newCollectionName); err == nil {
+		return nil, fmt.Errorf("Collection %v already exists", newCollectionName)
 	}
 
-	initialColSel, err := _colSelectionCreateInitial()
-	if err != nil {
-		return nil, err
+	// validate catalogName
+	if catalogName == "" {
+		return nil, fmt.Errorf("CatalogName '%v' invalid", catalogName)
 	}
+
+	// load catalog from catalogName
+	var catalog *Catalog
+	{
+		var err error
+		catalog, err = catalogLoad(catalogName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Create new object, save to db
 	o := &Collection{}
-	o.Name = name
-	o.ColSelections = append(o.ColSelections, initialColSel)
-	o.save(o)
-	err = o.stateChange(o, "Completed", nil)
-	if err != nil {
-		o.stateChange(o, "Failed", err)
-		return nil, err
+	{
+		initialColSel, err := _colSelectionCreateInitial(catalog)
+		if err != nil {
+			return nil, err
+		}
+		o.Name = newCollectionName
+		o.Catalog = catalog
+		o.CatalogID = catalog.ID
+		o.ColSelections = append(o.ColSelections, initialColSel)
+		err = o.save(o)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	// set State to "Completed"
+	{
+		err := o.stateChange(o, "Completed", nil)
+		if err != nil {
+			o.stateChange(o, "Failed", err)
+			return nil, err
+		}
+	}
+
+	// return object
 	return o, nil
 }
 
@@ -84,6 +100,10 @@ func (o *Collection) stateChangePostHandleXState(oldState string, oldError error
 
 // collectionLoad loads from db
 func collectionLoad(name string) (*Collection, error) {
+	if err := _isValidDNSLabel(name); err != nil {
+		return nil, err
+	}
+
 	o := &Collection{}
 	// The following db.Where... will not do nested-preloading, that will be done latter
 	// with the o.reload(o) call
@@ -102,65 +122,284 @@ func collectionLoad(name string) (*Collection, error) {
 //
 //	colsInfo, err := collectionsOverview()
 //	for _, a_colInfo := range colsInfo {
-//	  fmt.Println("Collection Name: " , a_colInfo["Name"])
-//	  fmt.Println("Collection State: ", a_colInfo["State"])
-//	  fmt.Println("Collection ErrorStr: ", a_colInfo["ErrorStr"])
+//	  fmt.Println("Collection Name: " , a_colInfo.Name)
+//	  fmt.Println("Collection CatalogName: " , a_colInfo.CatalogName)
+//	  fmt.Println("Collection State: ", a_colInfo.State)
+//	  fmt.Println("Collection ErrorStr: ", a_colInfo.ErrorStr)
 //	}
-func collectionsOverview() (colsInfo []map[string]string, err error) {
-	var colList []*Collection
-	err = db.Select("name", "state", "error_string").Find(&colList).Error
+func collectionsOverview() (colsInfo []CollectionInfo, err error) {
+	colList := []*Collection{}
+	err = db.
+		Preload(clause.Associations). // direct-1-level-deep-fields are loaded
+		Find(&colList).Error
 	if err != nil {
 		return nil, err
 	}
 	for _, col := range colList {
-		colsInfo = append(colsInfo, map[string]string{
-			"Name":     col.Name,
-			"State":    col.State,
-			"ErrorStr": col.ErrorString,
+		colsInfo = append(colsInfo, CollectionInfo{
+			Name:        col.Name,
+			CatalogName: col.Catalog.Name,
+			State:       col.State,
+			ErrorStr:    col.ErrorString,
 		})
+	}
+	if colsInfo == nil {
+		colsInfo = []CollectionInfo{}
 	}
 	return colsInfo, nil
 }
 
-func (c *Collection) appendAndRunColSelection(schema *Schema, jsonInput string, jsonOutput string, requestingUser string) error {
-	err := c.reload(c) // reload object from db
+func (c *Collection) getTimestamp() (timestamp time.Time, err error) {
+	var colSelLatest *ColSelection
+	{
+		colSelLatest, err = c.colSelectionLatest()
+		if err != nil {
+			return timestamp, err
+		}
+	}
+
+	return colSelLatest.getTimestamp()
+}
+
+func (c *Collection) getTimestampFormated() (timestampFormated string, err error) {
+	var colSelLatest *ColSelection
+	{
+		colSelLatest, err = c.colSelectionLatest()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return colSelLatest.getTimestampFormated()
+}
+
+func (c *Collection) getCollectionReplayableDirTgz() (collectionReplayableDirTgz []byte, collectionReplayableBasename string, err error) {
+	// <collectionReplayableParentDir>/<collectionReplayableBasename>
+	// |------------<collectionReplayableDir>-----------------------|
+	//
+	// <collectionReplayableParentDir>/<collectionReplayableBasename>/<collectionEditWorkdirBasename>
+	// |------------<collectionEditWorkdir>---------------------------------------------------------|
+	//
+	// <collectionReplayableParentDir>/<collectionReplayableBasename>/<catalogDirBasename>
+	// |------------<catalogDir>---------------------------------------------------------|
+	//
+	var collectionReplayableParentDir, collectionReplayableDir, catalogDirBasename, catalogDir, collectionEditWorkdirBasename, collectionEditWorkdir string
+
+	// create collectionReplayableDir with its subdirs and files
+	{
+		// set and mkdir collectionReplayableDir
+		{
+			// set and mkdir collectionReplayableParentDir
+			{
+				collectionReplayableParentDir, err = os.MkdirTemp("", "collectionReplayableParentDir")
+				if err != nil {
+					return nil, "", err
+				}
+				defer os.RemoveAll(collectionReplayableParentDir)
+			}
+
+			// set and mkdir collectionReplayableDir and collectionReplayableBasename
+			{
+				collectionReplayableBasename, err = c.getCollectionReplayableDirBasename()
+				if err != nil {
+					return nil, "", err
+				}
+
+				collectionReplayableDir = filepath.Join(collectionReplayableParentDir, collectionReplayableBasename)
+				err = os.MkdirAll(collectionReplayableDir, 0700)
+				if err != nil {
+					return nil, "", err
+				}
+			}
+		}
+
+		// set, mkdir and extract catalogDir
+		{
+			catalogDirBasename = c.Catalog.getCatalogDirBasenameString()
+			if err != nil {
+				return nil, "", err
+			}
+
+			catalogDir = filepath.Join(collectionReplayableDir, catalogDirBasename)
+			err = os.MkdirAll(catalogDir, 0700)
+			if err != nil {
+				return nil, "", err
+			}
+
+			catalogDirTgz, err := c.Catalog.getCatalogDirTgz()
+			if err != nil {
+				return nil, "", err
+			}
+			err = extractTgz2Dir(catalogDirTgz, catalogDir)
+			if err != nil {
+				return nil, "", err
+			}
+		}
+
+		// set, mkdir and extract collectionEditWorkdir
+		var cselLatest *ColSelection
+		{
+			cselLatest, err = c.colSelectionLatest()
+			if err != nil {
+				return nil, "", err
+			}
+
+			collectionEditWorkdirBasename, err = cselLatest.getCollectionEditWorkdirBasename()
+			if err != nil {
+				return nil, "", err
+			}
+
+			collectionEditWorkdir = filepath.Join(collectionReplayableDir, collectionEditWorkdirBasename)
+			err = os.MkdirAll(collectionEditWorkdir, 0700)
+			if err != nil {
+				return nil, "", err
+			}
+
+			var per *ProcessingEngineRunner
+			{
+				per = cselLatest.ProcessingEngineRunner
+				err = per.reload(per)
+				if err != nil {
+					return nil, "", err
+				}
+			}
+
+			collectionEditWorkdirTgz, err := per.getCollectionEditWorkdirTgz()
+			if err != nil {
+				return nil, "", err
+			}
+			err = extractTgz2Dir(collectionEditWorkdirTgz, collectionEditWorkdir)
+			if err != nil {
+				return nil, "", err
+			}
+		}
+
+		// create README.md
+		var readmeFilepath string
+		{
+			readmeFilepath = filepath.Join(collectionReplayableDir, "README.md")
+			readmeContent := `
+This directory is a **Collection replayable**, which contains *all* the necessary files to:
+
+- analyse last CollectionEdit logs, in ` + "`" + collectionEditWorkdirBasename + `/CollectionEditFiles/TrackLogs/*
+
+- optionally make local replays (re-execute) of the CollectionEdit, for troubleshooting and development
+  ` + "```" + `
+  # Set manually the required env-vars (like tokens and secrets), and then run a replay with:
+  ./` + catalogDirBasename + `/bin/internal/bash -c '` + catalogDirBasename + `/bin/CollectionEdit.Replay.sh ` + collectionEditWorkdirBasename + `/' 
+ 
+  TODO: sample printout 
+  ` + "```" + `
+
+  Replays execute the same Catalog (and Processing Engines) used by the vendingmaxine, in a *self-contained reproducible shell enviroment* that is copied end executed locally. 
+
+  The replays are mostly usefull for troubleshooting unexpected problems, and for developing new versions of the Catalog/Processing Engines.
+
+  These local replays are run independently, its results are not uploaded to the vendingmaxine. They will however re-execute the processing engines, including any change made by them
+  But this execution happens always outside and independently of the vendingMaxine. 
+
+  To see debug traces from bash scripts, set ` + "`" + `export DEBUGBASHXTRACE=true` + "`" + ` before execution.
+
+`
+			err = writeToFile(readmeContent, readmeFilepath)
+			if err != nil {
+				return nil, "", err
+			}
+		}
+	}
+
+	// create collectionReplayableDirTgz from collectionReplayableParentDir
+	{
+		collectionReplayableDirTgz, err = compressDir2Tgz(collectionReplayableParentDir)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	return collectionReplayableDirTgz, collectionReplayableBasename, nil
+}
+
+func (c *Collection) getCollectionReplayableDirBasename() (collectionReplayableDirBasename string, err error) {
+	colSelLatest, err := c.colSelectionLatest()
 	if err != nil {
+		return "", err
+	}
+
+	collectionEditWorkdirBasename, err := colSelLatest.getCollectionEditWorkdirBasename()
+	if err != nil {
+		return "", err
+	}
+
+	collectionReplayableDirBasename = "replayable." + collectionEditWorkdirBasename
+	return collectionReplayableDirBasename, nil
+}
+
+func (c *Collection) appendAndRunColSelection(jsonInput string, jsonOutput string, requestingUser string) error {
+	// Reload c from db, to assure it's in-sync
+	if err := c.reload(c); err != nil {
 		return err
 	}
-	if err = c.canBeUpdated(); err != nil {
+	// Verify c can be updated
+	if err := c.canBeUpdated(); err != nil {
 		return err
 	}
 
+	// Verify jsonInput == currentColSel.JsonOutput
+	// It must always (except when its the first colSel in which case the verification is skipped)
+	{
+		currentColSel, err := c.colSelectionLatest()
+		if err != nil {
+			return err
+		}
+		isInitialColSel := false
+		if currentColSel.JsonInput == initialColSelData["jsonInput"] &&
+			currentColSel.JsonOutput == initialColSelData["jsonOutput"] &&
+			currentColSel.RequestingUser == initialColSelData["requestingUser"] {
+			isInitialColSel = true
+		}
+		if !isInitialColSel {
+			// this is not first colSel, lets verify: jsonInput == currentColSel.JsonOutput
+			if jsonInput != currentColSel.JsonOutput {
+				return fmt.Errorf("error: jsonInput =! currentColSel.JsonOutput, aborting change-request, no changes made")
+			}
+		}
+	}
+
+	// Create new ColSelection, append into c.ColSelections, and save c to db
 	var csel *ColSelection
-	csel, err = newColSelection(schema, jsonInput, jsonOutput, requestingUser)
-	if err != nil {
-		return err
-	}
-	c.ColSelections = append(c.ColSelections, csel)
-	err2 := c.save(c)
-	if err2 != nil {
-		return err2
-	}
-	err = csel.run()
-	err2 = c.reload(c) // reload object from db
-	if err != nil {
-		return err
-	}
-	if err2 != nil {
-		return err2
+	{
+		var err error
+		csel, err = newColSelection(c.Catalog, jsonInput, jsonOutput, requestingUser)
+		if err != nil {
+			return err
+		}
+		c.ColSelections = append(c.ColSelections, csel)
+		err = c.save(c) // everytime we change c, we need to save it on db as soon as possible
+		if err != nil {
+			return err
+		}
 	}
 
+	// Run ColSelection in paralel routine and return
+	go csel.run()
 	return nil
 }
 
 func (c *Collection) colSelectionLatest() (*ColSelection, error) {
 	cselsLen := len(c.ColSelections)
 	csel := c.ColSelections[cselsLen-1]
+
+	err := csel.reload(csel)
+	if err != nil {
+		return nil, err
+	}
+
 	return csel, nil
 }
 
 func (c *Collection) canBeUpdated() error {
-	if c.State != "Completed" {
+	switch c.State {
+	case "Running":
 		return fmt.Errorf("collecion %s cannot be edited/updated as its in state %s", c.Name, c.State)
 	}
 	return nil
@@ -203,11 +442,15 @@ func (o *Collection) gormID() uint {
 	return o.ID
 }
 
-func _isValidDNSLabel(s string) bool {
-	if len(s) > 63 {
-		return false
+func _isValidDNSLabel(name string) error {
+	errBack := fmt.Errorf("invalid name '%s' (ex: 'lowcase-nounderscores-63max')", name)
+	if len(name) > 63 {
+		return errBack
 	}
 	// not perfect, but good enough ;)
 	r, _ := regexp.Compile("^[a-z]([-a-z0-9]*[a-z0-9])?$")
-	return r.MatchString(s)
+	if b := r.MatchString(name); !b {
+		return errBack
+	}
+	return nil
 }

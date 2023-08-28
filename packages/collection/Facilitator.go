@@ -18,57 +18,59 @@ func NewFacilitator() (*Facilitator, error) {
 }
 
 // InitSetup function must be called before using other functions of this package
-func (f *Facilitator) InitSetup(dbFilepath string, processingEnginesDirpath string, zapSugaredLogger *zap.SugaredLogger) {
+func (f *Facilitator) InitSetup(dbFilepath string, catalogDefaultName string, catalogDefaultDirpath string, zapSugaredLogger *zap.SugaredLogger) {
 	initSlog(zapSugaredLogger)
 	initDb(dbFilepath)
-	initProcessingEngineRunner(processingEnginesDirpath)
+	initCatalog(catalogDefaultName, catalogDefaultDirpath)
 }
 
-// CollectionsOverview returns list of maps with usefull info of all collections
+// Create a new collection
 //
-//	colsInfo, err := f.CollectionsOverview()
-//	for _, a_colInfo := range colsInfo {
-//	  fmt.Println("Collection Name: " , a_colInfo["Name"])
-//	  fmt.Println("Collection State: ", a_colInfo["State"])
-//	  fmt.Println("Collection ErrorStr: ", a_colInfo["ErrorStr"])
-//	}
-func (f *Facilitator) CollectionsOverview() (colsInfo []map[string]string, err error) {
-	return collectionsOverview()
+//	`name` must be compliant with DNS label standard as defined in RFC 1123 (like pod label-names, see https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names).
+func (f *Facilitator) CollectionNew(collectionName, catalogName string) error {
+	_, err := collectionNew(collectionName, catalogName)
+	return err
 }
 
 // CollectionEdit_Prepinfo returns the preparatory-info necessary to start editing a collection
 func (f *Facilitator) CollectionEdit_Prepinfo(colName string) (schemaJson string, jsonInput string, err error) {
-	allowSchemaUpdate := false
-	return f._collectionEdit_Prepinfo(colName, allowSchemaUpdate)
+	allowCatalogRenewal := false
+	return f._collectionEdit_Prepinfo(colName, allowCatalogRenewal)
 }
-func (f *Facilitator) _collectionEdit_Prepinfo(colName string, allowSchemaUpdate bool) (schemaJson string, jsonInput string, err error) {
+func (f *Facilitator) _collectionEdit_Prepinfo(colName string, allowCatalogRenewal bool) (schemaJson string, jsonInput string, err error) {
+	// load and validate col can be updated
 	var col *Collection
-	col, err = collectionLoad(colName)
+	{
+		col, err = collectionLoad(colName)
+		if err != nil {
+			return "", "", err
+		}
+		if err = col.canBeUpdated(); err != nil {
+			return "", "", err
+		}
+	}
+
+	// get schemaJson
+	schemaJson, err = col.Catalog.schema()
 	if err != nil {
 		return "", "", err
 	}
-	if err = col.canBeUpdated(); err != nil {
-		return "", "", err
-	}
 
-	schemaLatest, err := schemaLoadLatest()
-	if err != nil {
-		return "", "", err
-	}
-	schemaJson = schemaLatest.Json
+	// get jsonInput (jsonInput = cselLatest.JsonOutput)
+	{
+		cselLatest, err := col.colSelectionLatest()
+		if err != nil {
+			return "", "", err
+		}
 
-	cselLatest, err := col.colSelectionLatest()
-	if err != nil {
-		return "", "", err
-	}
+		// thisEdit::jsonInput = formerEdit::jsonOutput
+		jsonInput = cselLatest.JsonOutput
 
-	// thisEdit::jsonInput = formerEdit::jsonOutput
-	jsonInput = cselLatest.JsonOutput
-
-	if !allowSchemaUpdate {
-		// Safety validation: we dont accept schema-updates between cselLatest and now
-		if cselLatest.SchemaID != schemaLatest.ID {
-			return "", "", fmt.Errorf("safety-protection, a schema-update is not allowed between last edit and now")
+		if !allowCatalogRenewal {
+			// Safety validation: we dont accept catalog-renewal between cselLatest and now
+			if cselLatest.CatalogID != col.CatalogID {
+				return "", "", fmt.Errorf("safety-protection, a catalog-renewal is not allowed between last edit and now")
+			}
 		}
 	}
 
@@ -77,78 +79,72 @@ func (f *Facilitator) _collectionEdit_Prepinfo(colName string, allowSchemaUpdate
 
 // CollectionEdit_Save updates the collection
 func (f *Facilitator) CollectionEdit_Save(colName string, schemaJson string, jsonInput string, jsonOutput string, requestingUser string) error {
+	// load and validate col can be updated
+	var col *Collection
+	{
+		var err error
+		col, err = collectionLoad(colName)
+		if err != nil {
+			return err
+		}
+		if err = col.canBeUpdated(); err != nil {
+			return err
+		}
+	}
+
+	// Assure schemaJson == catalogSchema, ie, since CollectionEdit_Prepinfo:
+	// - the catalog schema has not changed (no catalog renewal happened in the meanwhile)
+	// - the user has not changed the jsonSchema
+	var catalogSchema string
+	{
+		var err error
+		catalogSchema, err = col.Catalog.schema()
+		if err != nil {
+			return err
+		}
+		if schemaJson != catalogSchema {
+			return fmt.Errorf("schemaJson != catalogSchema which is unexpected. From  collection-edit-start to collection-edit-save a change of jsonSchema is not supported. Aborting collection-edit-save")
+		}
+	}
+
+	// Append and Run ColSelection
+	err := col.appendAndRunColSelection(jsonInput, jsonOutput, requestingUser)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CollectionsOverview returns list of maps with usefull info of all collections
+//
+//	colsInfo, err := f.CollectionsOverview()
+//	for _, a_colInfo := range colsInfo {
+//	  fmt.Println("Collection Name: " , a_colInfo.Name)
+//	  fmt.Println("Collection CatalogName: " , a_colInfo.CatalogName)
+//	  fmt.Println("Collection State: ", a_colInfo.State)
+//	  fmt.Println("Collection ErrorStr: ", a_colInfo.ErrorStr)
+//	}
+func (f *Facilitator) CollectionsOverview() (colsInfo []CollectionInfo, err error) {
+	return collectionsOverview()
+}
+
+// CollectionReplayable returns the replayableTgz for the colName collection
+func (f *Facilitator) CollectionReplayable(colName string) (collectionReplayableTgz []byte, collectionReplayableTgzBasename string, err error) {
 	col, err := collectionLoad(colName)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
-	if err = col.canBeUpdated(); err != nil {
-		return err
-	}
-
-	// Assure schemaJson == schemaLatest.Json
-	schemaLatest, err := schemaLoadLatest()
-	if err != nil {
-		return err
-	}
-	if schemaJson != schemaLatest.Json {
-		return fmt.Errorf("schemaJson != schemaLatest.Json which is unexpected - cannot save new collection with differing schemaJson")
-	}
-
-	err = col.appendAndRunColSelection(schemaLatest, jsonInput, jsonOutput, requestingUser)
-	if err != nil {
-		return err
-	}
-	return nil
+	return col.getCollectionReplayableDirTgz()
 }
 
-// Create a new collection
+// CatalogsOverview returns list of maps with usefull info of all Catalogs
 //
-//	`name` must be compliant with DNS label standard as defined in RFC 1123 (like pod label-names, see https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names).
-func (f *Facilitator) CollectionNew(colName string) error {
-	_, err := collectionNew(colName)
-	return err
-}
-
-// SchemaEdit_Prepinfo returns the preparatory-info necessary to prepare for a new schema
-func (f *Facilitator) SchemaEdit_Prepinfo() (latestSchemaVersionName string, latestSchemaJsonStr string, err error) {
-	latestSchema, err := schemaLoadLatest()
-	if err != nil {
-		return "", "", err
-	}
-	latestSchemaVersionName = latestSchema.VersionName
-	latestSchemaJsonStr = latestSchema.Json
-	err = nil
-	return latestSchemaVersionName, latestSchemaJsonStr, err
-}
-
-// SchemaEdit_SaveAndApplyToAllCollections will create a new schema, and apply it to all existing Collections
-func (f *Facilitator) SchemaEdit_SaveAndApplyToAllCollections(newSchemaVersionName string, newSchemaJsonStr string) error {
-	// Save new schema latest
-	_, err := schemaNew(newSchemaVersionName, newSchemaJsonStr)
-	if err != nil {
-		return err
-	}
-
-	// Apply to all Collections
-	requestingUser := "system-apply-new-schema"
-	colsInfo, err := f.CollectionsOverview()
-	if err != nil {
-		return err
-	}
-	for _, a_colInfo := range colsInfo {
-		a_col_Name := a_colInfo["Name"]
-		allowSchemaUpdate := true
-		schemaLatest, jsonInput, err := f._collectionEdit_Prepinfo(a_col_Name, allowSchemaUpdate)
-		if err != nil {
-			//TODO: internally log this somehow, its important when a schema-update makes a collection fail!
-			fmt.Printf("SchemaUpdate got error: %v \n", err)
-		}
-		jsonOutput := jsonInput
-		err = f.CollectionEdit_Save(a_col_Name, schemaLatest, jsonInput, jsonOutput, requestingUser)
-		if err != nil {
-			//TODO: internally log this somehow, its important when a schema-update makes a collection fail!
-			fmt.Printf("SchemaUpdate got error: %v \n", err)
-		}
-	}
-	return nil
+//	catsInfo, err := f.CatalogsOverview()
+//	for _, a_catInfo := range catsInfo {
+//	  fmt.Println("Catalog Name: " , a_catInfo.Name)
+//	  fmt.Println("Catalog Deprecated?: " , a_catInfo.Deprecated)
+//	}
+func (f *Facilitator) CatalogsOverview() (colsInfo []CatalogInfo, err error) {
+	return catalogsOverview()
 }

@@ -1,0 +1,243 @@
+package web
+
+import (
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+	"vendingMaxine/packages/collection"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+)
+
+var f *Facilitator
+
+// Ex: 	reprepForTestApi(t, "tests/Collection/processingEngines")
+func reprepForTestApi(t *testing.T, processingEnginesDirpath string) {
+	if f != nil {
+		_ = f.StopServer()
+		time.Sleep(1 * time.Second)
+	}
+
+	{
+		cwd, err := os.Getwd()
+		if err != nil {
+			t.Error("Failed to get current directory of this test file")
+		}
+
+		mainFilePath := filepath.Join(cwd, "..", "..")
+		err = os.Chdir(mainFilePath)
+		if err != nil {
+			t.Error("Failed to change to same directory as main.go")
+		}
+
+	}
+	dbFilepath := filepath.Dir(processingEnginesDirpath) + "/sqlite.db"
+	_ = os.Remove(dbFilepath)
+
+	f, _ = NewFacilitator()
+	logger, _ := zap.NewProduction()
+	slog = logger.Sugar()
+	f.InitSetup(dbFilepath, processingEnginesDirpath, slog)
+	go f.StartServer(":8080")
+	time.Sleep(2 * time.Second)
+}
+
+// Happy-path: collection create, overview, edit-prep, edit-save
+func TestApi(t *testing.T) {
+	reprepForTestApi(t, "tests/Api/processingEngines")
+
+	// Create a new collection
+	collectionName := "colection-a"
+	{
+		collectionNewReq := CollectionNewRequest{Name: collectionName}
+		collectionNewReqBytes, _ := json.Marshal(collectionNewReq)
+		resp, err := http.Post("http://localhost:8080/api/v1/collections", "application/json", bytes.NewBuffer(collectionNewReqBytes))
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		defer resp.Body.Close()
+		assert.Equal(t, "200 OK", resp.Status)
+	}
+
+	// Get collections overview
+	{
+		resp, err := http.Get("http://localhost:8080/api/v1/collections")
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+
+		defer resp.Body.Close()
+		assert.Equal(t, "200 OK", resp.Status)
+
+		// Read response body
+		var colsInfo []collection.CollectionInfo
+		err = json.NewDecoder(resp.Body).Decode(&colsInfo)
+
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		spew.Dump(colsInfo)
+		colsInfo_0 := colsInfo[0]
+		assert.Equal(t, collectionName, colsInfo_0.Name)
+		assert.Equal(t, "Completed", colsInfo_0.State)
+		assert.Equal(t, "", colsInfo_0.ErrorStr)
+	}
+
+	// Get collection edit prepinfo (edit-prep)
+	var collectionEditPrepinfo CollectionEditPrepinfoResponse
+	{
+		resp, err := http.Get("http://localhost:8080/api/v1/collections/" + collectionName)
+
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+
+		defer resp.Body.Close()
+		assert.Equal(t, "200 OK", resp.Status)
+
+		// Read response body
+		err = json.NewDecoder(resp.Body).Decode(&collectionEditPrepinfo)
+
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		spew.Dump(collectionEditPrepinfo)
+		assert.Equal(t, collectionEditPrepinfo.JsonInput, "{}")
+		assert.Equal(t, collectionEditPrepinfo.SchemaJson, "{}")
+	}
+	// Edit collection (edit-save)
+	{
+		collectionEditReq := CollectionEditRequest{
+			SchemaJson: collectionEditPrepinfo.SchemaJson,
+			JsonInput:  collectionEditPrepinfo.JsonInput,
+			JsonOutput: `{"newjsonoutput":true}`,
+		}
+
+		collectionEditReqBytes, _ := json.Marshal(collectionEditReq)
+		req, err := http.NewRequest("PUT", "http://localhost:8080/api/v1/collections/"+collectionName, bytes.NewBuffer(collectionEditReqBytes))
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Errorf("Expected no error, but got %v", err)
+		}
+		spew.Dump(body)
+		assert.Equal(t, "200 OK", resp.Status)
+	}
+}
+
+// When a processincengine fails, collection should get into Failed and afterwards be editable
+func TestApi_PeFailsColFails(t *testing.T) {
+	reprepForTestApi(t, "tests/Api/Pe1Fails")
+
+	// Create a new collection
+	collectionName := "colection-a"
+	{
+		collectionNewReq := CollectionNewRequest{Name: collectionName}
+		collectionNewReqBytes, _ := json.Marshal(collectionNewReq)
+		resp, err := http.Post("http://localhost:8080/api/v1/collections", "application/json", bytes.NewBuffer(collectionNewReqBytes))
+		assert.Equal(t, err, nil)
+		defer resp.Body.Close()
+		assert.Equal(t, "200 OK", resp.Status)
+	}
+
+	// Get collections overview
+	{
+		resp, err := http.Get("http://localhost:8080/api/v1/collections")
+		assert.Equal(t, err, nil)
+		defer resp.Body.Close()
+		assert.Equal(t, "200 OK", resp.Status)
+
+		// Read response body
+		var colsInfo []collection.CollectionInfo
+		err = json.NewDecoder(resp.Body).Decode(&colsInfo)
+		assert.Equal(t, err, nil)
+		//spew.Dump(colsInfo)
+		colsInfo_0 := colsInfo[0]
+		assert.Equal(t, collectionName, colsInfo_0.Name)
+		assert.Equal(t, "Completed", colsInfo_0.State)
+		assert.Equal(t, "", colsInfo_0.ErrorStr)
+	}
+
+	// Get collection edit prepinfo (edit-prep)
+	var collectionEditPrepinfo CollectionEditPrepinfoResponse
+	{
+		resp, err := http.Get("http://localhost:8080/api/v1/collections/" + collectionName)
+		assert.Equal(t, err, nil)
+		defer resp.Body.Close()
+		assert.Equal(t, "200 OK", resp.Status)
+
+		// Read response body
+		err = json.NewDecoder(resp.Body).Decode(&collectionEditPrepinfo)
+		assert.Equal(t, err, nil)
+		// spew.Dump(collectionEditPrepinfo)
+		assert.Equal(t, collectionEditPrepinfo.JsonInput, "{}")
+		assert.Equal(t, collectionEditPrepinfo.SchemaJson, "{}")
+	}
+	// Edit collection (edit-save) - PE fails, should return error
+	var collectionEditReq CollectionEditRequest
+	{
+		collectionEditReq = CollectionEditRequest{
+			SchemaJson: collectionEditPrepinfo.SchemaJson,
+			JsonInput:  collectionEditPrepinfo.JsonInput,
+			JsonOutput: collectionEditPrepinfo.JsonInput,
+		}
+
+		collectionEditReqBytes, _ := json.Marshal(collectionEditReq)
+		req, err := http.NewRequest("PUT", "http://localhost:8080/api/v1/collections/"+collectionName, bytes.NewBuffer(collectionEditReqBytes))
+		assert.Equal(t, err, nil)
+		req.Header.Set("Content-Type", "application/json")
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		assert.Equal(t, err, nil)
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		assert.Equal(t, err, nil)
+		spew.Dump(body)
+		assert.NotEqual(t, "200 OK", resp.Status) // PE fails, should return error
+	}
+	// ATP: collection is now "Failed"
+
+	// Get collection edit prepinfo (edit-prep)
+	{
+		resp, err := http.Get("http://localhost:8080/api/v1/collections/" + collectionName)
+		assert.Equal(t, err, nil)
+		defer resp.Body.Close()
+		assert.Equal(t, "200 OK", resp.Status)
+	}
+	// Edit collection (edit-save) - after getting into Failed, collection should still be editable  but will return an error
+	{
+		collectionEditReq = CollectionEditRequest{
+			SchemaJson: collectionEditPrepinfo.SchemaJson,
+			JsonInput:  collectionEditPrepinfo.JsonInput,
+			JsonOutput: collectionEditPrepinfo.JsonInput,
+		}
+		collectionEditReqBytes, _ := json.Marshal(collectionEditReq)
+		req, err := http.NewRequest("PUT", "http://localhost:8080/api/v1/collections/"+collectionName, bytes.NewBuffer(collectionEditReqBytes))
+		assert.Equal(t, err, nil)
+		req.Header.Set("Content-Type", "application/json")
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		assert.Equal(t, err, nil)
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		assert.Equal(t, err, nil)
+		spew.Dump(body)
+		assert.NotEqual(t, "200 OK", resp.Status)
+	}
+}

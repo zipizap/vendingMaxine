@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# USAGE: 
+#    # Inside a bash, shell, execute:
+#    source <CatalogDir>/bin/init.selfContainedEnv.source <CollectionEditWorkdir>
+
+
+# These exported functions and vars will be inherited by other child-bash-scripts as part of the environment
+# They are complementary to the _init_safety_flags_and_DEBUGBASHXTRACE function that should be called from within each child-bash-script
+function shw_info { 
+  [[ "${-}" =~ x ]] && set +x && local xWasSet=true || true
+  echo -e '\033[1;34m'"$(basename ${0}):   $1"'\033[0m'
+  [[ "${xWasSet:-}" == "true" ]] && set -x || true
+}
+export -f shw_info
+_init_safety_flags_and_DEBUGBASHXTRACE() { 
+  [[ "${DEBUGBASHXTRACE:-}" ]] && set -x || true
+  set -efu 
+}
+export -f _init_safety_flags_and_DEBUGBASHXTRACE
+export PS4='████████████████████████$(for (( idx=${#BASH_SOURCE[@]}-1 ; idx>=0 ; idx-- )); do [[ "${BASH_SOURCE[idx]}" == "${BASH_SOURCE[$((idx+1))]:-}" ]] && B="" || B="$(basename ${BASH_SOURCE[idx]})@"; echo -n "${B}${FUNCNAME[idx]:-}[${LINENO[idx]:-}]>"; done ) '
+_init_safety_flags_and_DEBUGBASHXTRACE
+
+
+
+# # [Optional] Load additional env-vars from specific files
+# USAGE: 
+#   initAdditionalEnvVarsFromFiles \
+#      "/a/b/mysensitiveenvvars.source" \
+#      "/a/b/azuredevops.pat.source" \
+#      "/a/b/gitlab.token.source" \
+#      "/a/b/azure.auth.source" \
+#      ...
+#
+# Example "/path/to/mysensitive.env-vars.source"
+# --- start "/path/to/mysensitive.env-vars.source" ---
+#     # Terraform Azurerm SPN authentication env-vars
+#     export ARM_CLIENT_ID="00000000-0000-0000-0000-000000000000"
+#     export ARM_CLIENT_SECRET="12345678-0000-0000-0000-000000000000"
+#     export ARM_TENANT_ID="10000000-0000-0000-0000-000000000000"
+#     export ARM_SUBSCRIPTION_ID="20000000-0000-0000-0000-000000000000"
+#     # Gitlab AccessToken authentication env-vars
+#     export GILAB_ACCESS_TOKEN=glpat-zzzzzzzzzzzz-zzz-zzz
+#     ...
+# --- end   "/path/to/mysensitive.env-vars.source" ---
+initAdditionalEnvVarsFromFiles() {
+  for a_sourceFile in "${@}"
+  do
+    if [[ -r "${a_sourceFile}" ]]
+    then
+      source "${a_sourceFile}"
+    fi
+  done
+}
+
+
+# Override PATH for self-contained enviroment
+overridePath() {
+  local __dir="$(cd "$(dirname $(readlink -f "${BASH_SOURCE[0]}"))" && pwd)"
+  
+  # restrict PATH
+  export PATH="${__dir}/internal:${__dir}"
+}
+
+# Set env-vars available to all PEs :)
+setEnvVars() {
+  export CollectionEditWorkdir="${1?missing required arg CollectionEditWorkdir}"  ; CollectionEditWorkdir=$(cd ${CollectionEditWorkdir} && pwd)
+    # '/tmp/tmp.HPjdcJ/sample-col.20230609-143317'
+
+  export PE_CONFIG_JSON_FILE="${CollectionEditWorkdir}"/CollectionEditFiles/PeConfig.json
+    # '/tmp/tmp.HPjdcJ/sample-col.20230609-143317/CollectionEditFiles/PeConfig.json'
+
+  export PeTracklogsParentdir="${CollectionEditWorkdir}"/CollectionEditFiles/TrackLogs
+    # '/tmp/tmp.HPjdcJ/sample-col.20230609-143317/CollectionEditFiles/TrackLogs'
+
+  export CatalogName=$(cat ${PE_CONFIG_JSON_FILE} | jq --exit-status --raw-output ' .catalog.name')
+    # "catalog-default-1-2-3"
+
+  export CollectionName=$(cat ${PE_CONFIG_JSON_FILE} | jq --exit-status --raw-output ' .collection.name')
+    # "sample-col"
+
+  export CatalogDir="$(cd "$(dirname $(readlink -f "${BASH_SOURCE[0]}"))/.." && pwd)"
+    # /tmp/zxkc984nas/catalog-default-1-2-3"
+
+  export SchemaFilepath="${CollectionEditWorkdir}"/$(cat "${PE_CONFIG_JSON_FILE}" | jq --exit-status --raw-output '."collection-edit".schemaFilepath' )
+    # '/tmp/tmp.HPjdcJ/sample-col.20230609-143317/CollectionEditFiles/Schema.json'
+
+  export JsonInputFilepath="${CollectionEditWorkdir}"/$(cat "${PE_CONFIG_JSON_FILE}" | jq --exit-status --raw-output '."collection-edit".jsonInputFilepath' )
+    # '/tmp/tmp.HPjdcJ/sample-col.20230609-143317/CollectionEditFiles/JsonInput.json'
+
+  export JsonOutputFilepath="${CollectionEditWorkdir}"/$(cat "${PE_CONFIG_JSON_FILE}" | jq --exit-status --raw-output '."collection-edit".jsonOutputFilepath' )
+    # '/tmp/tmp.HPjdcJ/sample-col.20230609-143317/CollectionEditFiles/JsonOutput.json'
+
+
+  # Override HOME to point to CollectionEditWorkdir
+  export OLD_HOME="${HOME}"
+  HOME="${CollectionEditWorkdir}"
+}
+
+show_some_parsed_vars() {
+  echo "PATH:                       ${PATH}"
+  echo "HOME:                       ${HOME}"
+  echo "OLD_HOME:                   ${OLD_HOME}"
+  echo "------------------------------------------"
+  echo "CatalogName:                ${CatalogName}"
+  echo "CatalogDir:                 ${CatalogDir}"
+  echo "CollectionName:             ${CollectionName}"
+  echo "CollectionEditWorkdir:      ${CollectionEditWorkdir}"
+  echo "PE_CONFIG_JSON_FILE:        ${PE_CONFIG_JSON_FILE}"
+  echo "SchemaFilepath:             ${SchemaFilepath}"
+  echo "JsonInputFilepath:          ${JsonInputFilepath}"
+  echo "JsonOutputFilepath:         ${JsonOutputFilepath}"
+  echo "JsonOutputFile contents:"
+  cat ${JsonOutputFilepath} | jq -C .
+}
+
+
+
+main() {
+  # Override PATH for self-contained enviroment
+  overridePath
+
+  # Set env-vars available to all PEs :)
+  if [[ "${2:-}" == "dontSetEnvVars" ]]
+  then
+    :
+  else
+    setEnvVars "${1}"
+    show_some_parsed_vars
+  fi
+
+  # # [Optional] Load additional env-vars from specific files
+  # initAdditionalEnvVarsFromFiles \
+  #    "/a/b/mysensitiveenvvars.source" \
+  #    "/a/b/azuredevops.pat.source" \
+  #    "/a/b/gitlab.token.source" \
+  #    "/a/b/azure.auth.source" \
+  #      ...
+  #
+  # Example "/path/to/mysensitive.env-vars.source"
+  # --- start "/path/to/mysensitive.env-vars.source" ---
+  #     # Terraform Azurerm SPN authentication env-vars
+  #     export ARM_CLIENT_ID="00000000-0000-0000-0000-000000000000"
+  #     export ARM_CLIENT_SECRET="12345678-0000-0000-0000-000000000000"
+  #     export ARM_TENANT_ID="10000000-0000-0000-0000-000000000000"
+  #     export ARM_SUBSCRIPTION_ID="20000000-0000-0000-0000-000000000000"
+  #     # Gitlab AccessToken authentication env-vars
+  #     export GILAB_ACCESS_TOKEN=glpat-zzzzzzzzzzzz-zzz-zzz
+  #     ...
+  # --- end   "/path/to/mysensitive.env-vars.source" ---
+
+
+}
+main "${@}"

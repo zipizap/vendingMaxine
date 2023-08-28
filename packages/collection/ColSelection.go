@@ -2,19 +2,28 @@ package collection
 
 import (
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
+
+var initialColSelData = map[string]string{
+	"jsonInput":      "{}",
+	"jsonOutput":     "{}",
+	"requestingUser": "init",
+}
 
 // State transitions:
 //   - State string:   "Pending" > "Running" > "Completed" or "Failed"
 //   - Error() error:  set when State=="Failed"
 type ColSelection struct {
 	gorm.Model
-	CollectionID           uint // relationship 1Collection-to-manyColSelections
-	Collection             *Collection
-	Schema                 *Schema // relationship manyColSelections-to-1Schema
-	SchemaID               uint    // relationship manyColSelections-to-1Schema
+	CollectionID uint // relationship 1Collection-to-manyColSelections
+	Collection   *Collection
+	// NOTE: ColSelection.Collection already contains a .Catalog, which will be changed over time on renewals
+	// ColSelection.Catalog is to keep a track of what was the corresponding Catalog when ColSelection was created and executed
+	Catalog                *Catalog // relationship manyColSelections-to-1Catalog
+	CatalogID              uint     // relationship manyColSelections-to-1Catalog
 	JsonInput              string
 	JsonOutput             string
 	RequestingUser         string
@@ -23,37 +32,18 @@ type ColSelection struct {
 	XState `gorm:"embedded"`
 }
 
-func newColSelection(schema *Schema, jsonInput string, jsonOutput string, requestingUser string) (*ColSelection, error) {
-	// newColSelection method should create a new object o and
-	//   - call o.RegisterObserverCallback(func(oldState string, oldError error, xstate *XState) error {
-	//     o.Save(o); return nil
-	//     }
-	//   - set the new object fields from its corresponding arguments
-	//   - check all possible errors
-	//     If inside this method, there is any error at any step, then:
-	//   - call o.StateChange("Failed", error) and return the error
-	//     If method is executed without errors, then:
-	//   - call o.StateChange("Pending", nil)
-	//   - return the created object o
-
-	// validate schema.ID == SchemaLatest().ID
-	schemaLatest, err := schemaLoadLatest()
-	if err != nil {
-		return nil, err
-	}
-	if schema.ID != schemaLatest.ID {
-		// schema is not the same as schemaLatest
-		return nil, fmt.Errorf("used schema is not schemaLatest")
-	}
+func newColSelection(catalog *Catalog, jsonInput string, jsonOutput string, requestingUser string) (*ColSelection, error) {
+	// improvement: validate catalog
 
 	o := &ColSelection{
-		Schema:         schemaLatest, // we need to assure the Schema field only gets an already-existing-in-db schema to avoid creating it unintentionally. Using schemaLatest achieves this effect
 		JsonInput:      jsonInput,
 		JsonOutput:     jsonOutput,
 		RequestingUser: requestingUser,
+		Catalog:        catalog,
+		CatalogID:      catalog.ID,
 	}
 
-	err = o.stateChange(o, "Pending", nil)
+	err := o.stateChange(o, "Pending", nil)
 	if err != nil {
 		o.stateChange(o, "Failed", err)
 		return nil, err
@@ -74,40 +64,43 @@ func (o *ColSelection) stateChangePostHandleXState(oldState string, oldError err
 }
 
 func (csel *ColSelection) run() error {
-	// run method should
-	//   - set o.ProcessingEngineRunner,err=NewProcessingEngineRunner()
-	//   - set o.ProcessingEngineRunner.RegisterObserverCallback( to call o.recalculateStateAndError(...) )
-	//   - call err = o.ProcessingEngineRunner.run()
-	//   - check all possible errors
-	//     If inside this method, there is any error at any step, then:
-	//   - call o.StateChange("Failed", error) and return the error
-
-	err := csel.reload(csel) // reload object from db
-	if err != nil {
-		return err
-	}
-	per, err := newProcessingEngineRunner()
-	csel.ProcessingEngineRunner = per
-	err2 := csel.save(csel)
-	if err != nil {
-		csel.stateChange(csel, "Failed", err)
-		return err
-	}
-	if err2 != nil {
-		csel.stateChange(csel, "Failed", err2)
-		return err2
+	// reload csel from db
+	{
+		err := csel.reload(csel)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = per.run()
-	err2 = csel.reload(csel) // reload object from db
-	if err != nil {
-		csel.stateChange(csel, "Failed", err)
-		return err
-	}
-	if err2 != nil {
-		return err2
+	// create new per and save it into csel.ProcessingEngineRunner
+	var per *ProcessingEngineRunner
+	{
+		var err error
+		per, err = newProcessingEngineRunner()
+		csel.ProcessingEngineRunner = per
+		err2 := csel.save(csel)
+		if err != nil {
+			csel.stateChange(csel, "Failed", err)
+			return err
+		}
+		if err2 != nil {
+			csel.stateChange(csel, "Failed", err2)
+			return err2
+		}
 	}
 
+	// call per.run() and then csel.reload(csel)
+	{
+		err := per.run()
+		err2 := csel.reload(csel) // reload object from db
+		if err != nil {
+			csel.stateChange(csel, "Failed", err)
+			return err
+		}
+		if err2 != nil {
+			return err2
+		}
+	}
 	return nil
 }
 
@@ -142,15 +135,8 @@ func (csel *ColSelection) _recalculateStateAndError(per *ProcessingEngineRunner)
 	}
 }
 
-func _colSelectionCreateInitial() (*ColSelection, error) {
-	latestSchema, err := schemaLoadLatest()
-	if err != nil {
-		return nil, err
-	}
-	initialJsonInput := "{}"
-	initialJsonOutput := "{}"
-	initialRequestingUser := "init"
-	initialColSel, err := newColSelection(latestSchema, initialJsonInput, initialJsonOutput, initialRequestingUser)
+func _colSelectionCreateInitial(catalog *Catalog) (*ColSelection, error) {
+	initialColSel, err := newColSelection(catalog, initialColSelData["jsonInput"], initialColSelData["jsonOutput"], initialColSelData["requestingUser"])
 	if err != nil {
 		return nil, err
 	}
@@ -159,4 +145,27 @@ func _colSelectionCreateInitial() (*ColSelection, error) {
 
 func (o *ColSelection) gormID() uint {
 	return o.ID
+}
+
+func (csel *ColSelection) getTimestamp() (timestamp time.Time, err error) {
+	timestamp = csel.CreatedAt
+	return timestamp, err
+}
+
+func (csel *ColSelection) getTimestampFormated() (timestampFormated string, err error) {
+	timestamp, err := csel.getTimestamp()
+	if err != nil {
+		return "", err
+	}
+	timestampFormated = timestamp.Format("20060102-150405")
+	return timestampFormated, err
+}
+
+func (csel *ColSelection) getCollectionEditWorkdirBasename() (collectionEditWorkdirBasename string, err error) {
+	timestampStr, err := csel.getTimestampFormated()
+	if err != nil {
+		return "", err
+	}
+	collectionEditWorkdirBasename = csel.Collection.Name + "." + timestampStr
+	return collectionEditWorkdirBasename, nil
 }

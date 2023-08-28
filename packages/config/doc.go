@@ -3,20 +3,28 @@
 
 	./config.yaml  >  env-vars  >  InitViperConfig()::defaultValues
 
-# Example `./config.yaml`
+	Ie, parameters in `./config.yaml` take precedence over env-vars. Env-vars take precedence over defaultValues.
 
-		processingengines:
-	  	  dirpath: "./processingEngines"
+## “./config.yaml`
 
-		db:
-		  filepath: "./sqlite.db"
+			catalog:
+	          default:
+			    name: "default-0-0-0"
+		  	    dirpath: "./catalog-default-0-0-0"
 
-# Example env-vars
+			db:
+			  filepath: "./sqlite.db"
 
-	VD_PROCESSINGENGINES_DIRPATH="./test/processingEngines"
+			logs:
+			  # DEBUG or INFO (default) or ERROR
+			  loglevel: "DEBUG"
+
+## Env-vars
+
+	VD_CATALOG_DEFAULT_NAME="default-0-0-0"
+	VD_CATALOG_DEFAULT_DIRPATH="./catalog-default-0-0-0"
 	VD_DB_FILEPATH="./test/sqlite.db"
-
-	Ex: VD_PROCESSINGENGINES_DIRPATH="./test/processingEngines" VD_DB_FILEPATH="./test/sqlite.db" go run main.go
+	VD_LOGS_LOGLEVEL="DEBUG"
 
 # How to read config-values in code:
 
@@ -26,7 +34,7 @@
 		".",
 		"VD",
 		map[string]string {
-			"processingengines.dirpath": "./processingEngines",
+			"catalog.default.name": "the default value",
 			"db.filepath": "./sqlite.db",
 		},
 	)
