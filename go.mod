@@ -3,6 +3,7 @@ module vendingMaxine
 go 1.20
 
 require (
+	github.com/gomarkdown/markdown v0.0.0-20230716120725-531d2d74bc12
 	github.com/json-iterator/go v1.1.12
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/spf13/viper v1.16.0

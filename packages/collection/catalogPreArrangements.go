@@ -1,11 +1,16 @@
 package collection
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 
+	"github.com/gomarkdown/markdown"
 	jsoniter "github.com/json-iterator/go"
 	"gopkg.in/yaml.v2"
 )
@@ -76,7 +81,7 @@ func catalogPreArrangement_SchemaYaml2SchemaJson(tmpDir string) (err error) {
 		if err != nil {
 			return err
 		}
-		schemaJsonContent, err := generateJsonFromYaml_adding_PropertyOrder(schemaYamlContent)
+		schemaJsonContent, err := _generateJsonFromYaml(schemaYamlContent)
 		if err != nil {
 			return err
 		}
@@ -95,7 +100,7 @@ func catalogPreArrangement_SchemaYaml2SchemaJson(tmpDir string) (err error) {
 	return nil
 }
 
-// generateJsonFromYaml_adding_PropertyOrder function converts yaml to json.
+// _generateJsonFromYaml function converts yaml to json.
 // The yamlInput must be a yaml-map (equivalent to golang map[string]interface)
 // The json elements might have a different order than the original yaml elements. However each element of yamlInput will be added an additional json-field `"propertyOrder": 3`
 // containing the element-1index order from the original yaml.
@@ -131,12 +136,50 @@ func catalogPreArrangement_SchemaYaml2SchemaJson(tmpDir string) (err error) {
 //			"type": "string"
 //		}
 //	}
-func generateJsonFromYaml_adding_PropertyOrder(yamlInput []byte) (jsonOutput []byte, err error) {
+func _generateJsonFromYaml(yamlBytes []byte) (jsonBytes []byte, err error) {
 	// Unmarshal the yaml into a map
-	var data map[string]interface{}
-	err = yaml.Unmarshal(yamlInput, &data)
-	if err != nil {
-		return nil, err
+	var yMap map[string]interface{}
+	{
+		err = yaml.Unmarshal(yamlBytes, &yMap)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// set jsonString
+	var jsonString string
+	{
+		// Catalog_title_and_description_in_markdown
+		{
+			catalogTitleAndDescriptionInMarkdown, ok := yMap["Catalog_title_and_description_in_markdown"].(string)
+			if !ok {
+				return nil, fmt.Errorf("Error reading Catalog_title_and_description_in_markdown as string")
+			}
+
+			var title, description string
+			{
+				title, description, err = _parse_titleAndDescriptionInMarkdown(catalogTitleAndDescriptionInMarkdown)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			jsonString = `
+{
+	"title": ` + title + `,
+	"description": ` + description + `,
+	"type": "object",
+	"options": {
+		"disable_collapse": true
+	},
+	"properties": {
+`
+		}
+
+		// Catalog_products
+		{
+
+		}
 	}
 
 	// // Add a "propertyOrder" field to each top-level map element
@@ -160,10 +203,96 @@ func generateJsonFromYaml_adding_PropertyOrder(yamlInput []byte) (jsonOutput []b
 	// }
 
 	// Marshal the map back into a json byte slice
-	jsonOutput, err = json.MarshalIndent(data, "", "  ")
+	jsonBytes, err = json.MarshalIndent(yMap, "", "  ")
 	if err != nil {
 		return nil, err
 	}
 
-	return jsonOutput, nil
+	return jsonBytes, nil
+}
+
+// _convert_nrOfItems_to_minItems_maxItems is a function that takes a string representation of a range (nrOfItems)
+// and returns the minimum and maximum values of that range.
+// The input string can be in the form of "x-y", "x-inf", or a single number.
+// It returns an error if the input string is not in the correct format.
+//
+//	+------------+----------+----------+
+//	| nrOfItems  | minItems | maxItems |
+//	+------------+----------+----------+
+//	| 0-inf      | 0        | 1000     |
+//	| 1          | 1        | 1        |
+//	| 0-5        | 0        | 5        |
+//	| 3          | 3        | 3        |
+//	| 3-4        | 3        | 4        |
+//	+------------+----------+----------+
+func _convert_nrOfItems_to_minItems_maxItems(nrOfItems string) (minItems int, maxItems int, err error) {
+	// Split the input string by the "-" character
+	parts := strings.Split(nrOfItems, "-")
+
+	// Check the number of parts after the split
+	switch len(parts) {
+	case 1:
+		// If there is only one part, it means the input is a single number
+		minItems, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, 0, errors.New("invalid input")
+		}
+		maxItems = minItems
+	case 2:
+		// If there are two parts, it means the input is a range
+		minItems, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, 0, errors.New("invalid input")
+		}
+		// Check if the second part of the range is "inf"
+		if parts[1] == "inf" {
+			maxItems = 1000
+		} else {
+			maxItems, err = strconv.Atoi(parts[1])
+			if err != nil {
+				return 0, 0, errors.New("invalid input")
+			}
+		}
+	default:
+		// If there are more or less than 1 or 2 parts, it means the input is not in the correct format
+		return 0, 0, errors.New("invalid input")
+	}
+
+	return minItems, maxItems, nil
+}
+
+// _parse_titleAndDescriptionInMarkdown function splits titleAndDescriptionMd into titleHtmlJsenc and descriptionHtmlJsenc
+// first line becomes the title, third-and-remaining-lines become the description
+func _parse_titleAndDescriptionInMarkdown(titleAndDescriptionMd string) (titleHtmlJsenc string, descriptionHtmlJsenc string, err error) {
+
+	// titleHtmlJsenc
+	{
+		firstLineMd := strings.Split(titleAndDescriptionMd, "\n")[0]
+
+		// remove leading ^# if they exist
+		titleMd := regexp.MustCompile(`^#+\s?`).ReplaceAllString(firstLineMd, "")
+		titleHtmlBytes := markdown.ToHTML([]byte(titleMd), nil, nil)
+
+		titleHtmlJsencBytes, err := json.Marshal(string(titleHtmlBytes))
+		if err != nil {
+			return "", "", err
+		}
+		titleHtmlJsenc = string(titleHtmlJsencBytes)
+	}
+
+	// descriptionHtmlJsenc
+	{
+		// third-and-other-lines are taken as description
+		ThirdAndOtherLinesMd := strings.Join(strings.Split(titleAndDescriptionMd, "\n")[2:], "\n")
+
+		descHtlm := markdown.ToHTML([]byte(ThirdAndOtherLinesMd), nil, nil)
+
+		descHtmlJsencBytes, err := json.Marshal(string(descHtlm))
+		if err != nil {
+			return "", "", err
+		}
+		descriptionHtmlJsenc = string(descHtmlJsencBytes)
+	}
+
+	return titleHtmlJsenc, descriptionHtmlJsenc, nil
 }

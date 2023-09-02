@@ -279,7 +279,7 @@ TODO: Schema and ProcessingEngines config, first-time and future Catalog-Renewal
         [x] funcs to download collectionReplayableDirTgz
         [x] replay tgz/untgz support symlinks 
       [ ] "feel the speed" - verify its usefull
-        [ ] remake catalog-default, a bit more realistic
+        [x] remake catalog-default, a bit more realistic
           [x] fix bug with set -x in .sh scripts
           [x] pre-requisites
             [x] terraform first-time setup
@@ -300,10 +300,6 @@ TODO: Schema and ProcessingEngines config, first-time and future Catalog-Renewal
             [x] + 00100.Terraform-ProviderBackend.sh: check required env-vars, create provider.azurerm.tf + backend.azurerm.tf
             [x] + 09900.Terraform-InitPlanApply.sh: terraform init+plan+apply
             [x] + <CatalogDir>/mytfmodule
-        [ ] impressions
-          [ ] editing catalog still feels clunky
-          [ ] logs: access them also when collection "Completed"
-          [ ] logs: quick-view ?in tab?
 
         [ ] schema.yaml as alternative to schema.json
           [x] go: If schema.yaml exists, convert it to schema.json (overwrite). If schema.yaml does not exist then schema.json must exist. Finally use schema.json. Schema.json will always exist in the end.
@@ -333,6 +329,14 @@ TODO: Schema and ProcessingEngines config, first-time and future Catalog-Renewal
         [ ] improve json-editor config, to:
           [ ] render htlm in title/descriptions
           [ ] show lines, as in the demo (easier to follow)
+
+
+
+        [ ] impressions
+          [ ] editing catalog still feels clunky
+          [ ] logs: access them also when collection "Completed"
+          [ ] logs: quick-view ?in tab?
+
 
         [-] on collectionEdit-ok, allows to check logs
         [x] on collectionEdit-nok, allows to check logs with error
