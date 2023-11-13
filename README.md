@@ -303,7 +303,7 @@ TODO: Schema and ProcessingEngines config, first-time and future Catalog-Renewal
 
         [ ] schema.yaml as alternative to schema.json
           [x] go: If schema.yaml exists, convert it to schema.json (overwrite). If schema.yaml does not exist then schema.json must exist. Finally use schema.json. Schema.json will always exist in the end.
-          [ ] go: yaml2json enhancements  (~/tmp/tmp.20230826172226.IHKd)
+          [ ] go: yaml2json enhancements
             [x] Schema.json: resume different scenarios that can happen, with relevant presentation-fields and data-fields
               [x] composite types
                 [x] object
@@ -313,10 +313,17 @@ TODO: Schema and ProcessingEngines config, first-time and future Catalog-Renewal
                 [x] integer
                 [x] number
                 [x] boolean
-              [ ] review and add json-editor features
-            [ ] Schema.yaml: enhancements to simpler and powerfull yaml structure to express presentation-fiels and data-fields, and how they convert to Schema.json
-            [ ] go: implement Schema.yaml enhancements and convertion to Schema.json
+              [x] review and add json-editor features
+              [x] title/headerTemplate
+                [x] note where/how they are used
+                [x] rethink yaml->json conversion
+            [x] Schema.yaml: enhancements to simpler and powerfull yaml structure to express presentation-fiels and data-fields, and how they convert to Schema.json
+            [x] go: implement Schema.yaml enhancements and convertion to Schema.json
             [ ] "feel the speed" - verify its usefull ;)
+              [ ] Schema.yaml: rewrite with new yaml structure
+              [ ] conversion to Schema.json ok?
+              [ ] webpage shows Schema.yaml correctly?
+              
 
         [ ] markdown descriptions: webpage js should render markdown->html in all descriptions of the schema, before using the schema in the jseditor
 
