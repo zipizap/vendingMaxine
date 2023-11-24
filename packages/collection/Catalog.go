@@ -27,8 +27,6 @@ type Catalog struct {
 }
 
 func initCatalog(catalogDefaultName string, catalogDefaultDirpath string) {
-	set_catalogHotsyncFromLocalDir_Dirpath(catalogDefaultDirpath)
-
 	_, err := catalogLoad(catalogDefaultName)
 	if err == gorm.ErrRecordNotFound {
 		// default category does not exist yet, lets create it
@@ -155,11 +153,7 @@ func catalogLoad(name string) (*Catalog, error) {
 	return o, nil
 }
 
-// +++ changed for temporary quick debug
 func (ca *Catalog) catalogDir() (catalogDirPath string, err error) {
-	// temporary quick debugging
-	return catalogHotsyncFromLocalDir_catalogDir()
-
 	// reload from db
 	{
 		err := ca.reload(ca)
@@ -208,11 +202,7 @@ func (ca *Catalog) getCatalogDirBasenameString() string {
 	return "catalog-" + ca.Name
 }
 
-// +++ changed for temporary quick debug
 func (ca *Catalog) schema() (schemaJson string, err error) {
-	// temp quick debug
-	return catalogHotsyncFromLocalDir_schema()
-
 	schemaJsonContent, err := ca.readFile("Schema.json")
 	if err != nil {
 		return "", err
