@@ -4,3 +4,4 @@ https://unpkg.com/spectre.css/dist/spectre.min.css
 https://unpkg.com/spectre.css/dist/spectre-exp.min.css
 https://unpkg.com/spectre.css/dist/spectre-icons.min.css
 
+https://cdn.jsdelivr.net/npm/@json-editor/json-editor@latest/dist/css/jsoneditor.min.css @json-editor/json-editor@2.12.0

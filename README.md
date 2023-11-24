@@ -322,24 +322,20 @@ TODO: Schema and ProcessingEngines config, first-time and future Catalog-Renewal
             [ ] "feel the speed" - verify its usefull ;)
               [x] Schema.yaml: rewrite with new yaml structure
               [x] conversion to Schema.json ok?
-              [ ] webpage shows Schema.yaml correctly?
-                [ ] fix: html-formatted-text not showing up
-                  [ ] catalog hot-reload from disk "easiable"? for debug
-        
-        [ ] for debug: enable hot-reload
-        [ ]
+              [x] webpage shows Schema.yaml correctly?
+                [x] fix: html-formatted-text not showing up
+                  [x] catalog hot-reload from disk "easiable"? for debug? Not that easy, tried and reverted.
+                  [x] added purify.min.js script - the html-generated-from-markdown is now rendered correctly again ;)
+              [x] improve json-editor config
+                [x] markdown descriptions: webpage js should render markdown->html in all descriptions of the schema, before using the schema in the jseditor
+                [x] je: revise options: theme, bootstrap5?  any theme but should look organized and show descriptions with htlm (bootstrap3 did it in examples)
+                [x] show lines, as in the demo (easier to follow)
 
-        [x] markdown descriptions: webpage js should render markdown->html in all descriptions of the schema, before using the schema in the jseditor
-
-        [ ] je: revise options: theme, bootstrap5?  any theme but should look organized and show descriptions with htlm (bootstrap3 did it in examples)
 
         [ ] web collection: 
           [ ] disable bottom-button while json-editor not valid and show validation-errors bellow the button
           [ ] cancel button to go back to collections webpage
 
-        [ ] improve json-editor config, to:
-          [ ] render htlm in title/descriptions
-          [ ] show lines, as in the demo (easier to follow)
 
 
 

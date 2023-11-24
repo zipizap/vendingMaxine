@@ -10,8 +10,12 @@ Catalog_products:
     Product_title_and_description_in_markdown: |-
         AAD-Group 'mycollection_DataClients' members
         --------------------
-        The 'mycollection_DataClients' AAD-Group members can access data from resources: blob/files
-        from storage accounts, secrets from keyvaults, etc
+        The **mycollection_DataClients** AAD-Group members can access data from resources:
+        
+        - blob/files
+        - storage accounts
+        - secrets from keyvaults
+        - etc
 
     Product_item:
       _type: object
