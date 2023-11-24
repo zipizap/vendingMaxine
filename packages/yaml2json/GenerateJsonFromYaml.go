@@ -230,6 +230,7 @@ func GenerateJsonFromYaml(yamlBytes []byte) (jsonBytes []byte, err error) {
 					"propertyOrder": 1,
 					"description":   Jdescription,
 					"type":          "info",
+					"title":         " ",
 				},
 				"elements": map[string]interface{}{
 					"propertyOrder": 2,

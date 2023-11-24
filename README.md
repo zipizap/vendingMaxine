@@ -192,7 +192,7 @@ TODO
 ### ProcessingEngine
 
 There are 2 types of ProcessingEngines (PEs):
-- `Renewer_v0.1.2` which renews the jsonOutput from a previous-older-version to the new version v0.1.2. Aka Renewer-PE 
+- `Renewer_v0.1.1_v0.1.2` which renews the jsonOutput from a previous-older-version v0.1.1 to the new version v0.1.2. Aka Renewer-PE 
 - `Processor` which should read jsonOutput and provision resource changes (create, update, delete). Aka Processor-PE
 
 
@@ -320,12 +320,16 @@ TODO: Schema and ProcessingEngines config, first-time and future Catalog-Renewal
             [x] Schema.yaml: enhancements to simpler and powerfull yaml structure to express presentation-fiels and data-fields, and how they convert to Schema.json
             [x] go: implement Schema.yaml enhancements and convertion to Schema.json
             [ ] "feel the speed" - verify its usefull ;)
-              [ ] Schema.yaml: rewrite with new yaml structure
-              [ ] conversion to Schema.json ok?
+              [x] Schema.yaml: rewrite with new yaml structure
+              [x] conversion to Schema.json ok?
               [ ] webpage shows Schema.yaml correctly?
-              
+                [ ] fix: html-formatted-text not showing up
+                  [ ] catalog hot-reload from disk "easiable"? for debug
+        
+        [ ] for debug: enable hot-reload
+        [ ]
 
-        [ ] markdown descriptions: webpage js should render markdown->html in all descriptions of the schema, before using the schema in the jseditor
+        [x] markdown descriptions: webpage js should render markdown->html in all descriptions of the schema, before using the schema in the jseditor
 
         [ ] je: revise options: theme, bootstrap5?  any theme but should look organized and show descriptions with htlm (bootstrap3 did it in examples)
 

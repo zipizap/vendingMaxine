@@ -2,6 +2,7 @@
 <link rel="stylesheet" href="/static/css/spectre.min.css">
 <link rel="stylesheet" href="/static/css/spectre-exp.min.css">
 <link rel="stylesheet" href="/static/css/spectre-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/spectre.css@latest/dist/spectre-icons.min.css">
 <style>
     .container {
       max-width:960px;
@@ -21,7 +22,8 @@
   {{template "footer.html"}}{{template "scripts.html"}}
 
   <script src="/static/js/jsoneditor.min.js"></script>
-  <script>
+  <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.min.js"></script>
+    <script>
     // set collection name from echo template
     const collectionname = "{{ .ColName }}";
     $(document).ready(function () {
@@ -38,9 +40,10 @@
                     console.log("schemaJson: \n"); console.log(schemaJson);
 
                     // configure json-editor with response data
-                    JSONEditor.defaults.theme = 'spectre';
-                    JSONEditor.defaults.iconlib = 'spectre';
                     var editorOptions = {
+                        theme: "bootstrap4",   // 'spectre'
+                        iconlib: "spectre",  // 'spectre'
+                        template: "handlebars",
                         schema: schemaJson,  
                         disable_edit_json: true,
                         disable_properties: true,

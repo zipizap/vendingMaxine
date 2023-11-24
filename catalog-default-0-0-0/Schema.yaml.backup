@@ -1,0 +1,151 @@
+Catalog_title_and_description_in_markdown: |-
+    Select products
+    --------------------
+    See further [documentation in our corporate wiki, in dedicated page detailing these products](https://my.internal.wiki.corp/vendingmaxine/catalog-default) 
+
+
+Catalog_products:
+
+  "additional_members_of_AADGroup_DataClients":
+    Product_title_and_description_in_markdown: |-
+        AAD-Group 'mycollection_DataClients' members
+        --------------------
+        The 'mycollection_DataClients' AAD-Group members can access data from resources: blob/files
+        from storage accounts, secrets from keyvaults, etc
+
+    Product_item:
+      _type: object
+      _title_and_description_in_markdown: "{{ self.alias }}"
+      _format: grid           #[opt] grid, prefer when content is small and fits well in same row      
+      "alias":
+        _type: string
+        _title_and_description_in_markdown: |-
+            Internal alias
+            --------------------
+            An internal alias to remember what this object_id corresponds to
+ 
+        _pattern: '^[0-9a-z- ]+$'
+        _default: "Exs: 'group TeamWhisky' or 'user Siegi' or 'spn cicdWhisky1'"
+
+      "object_id": 
+        _type: string
+        _title_and_description_in_markdown: |-
+            Object_id
+            --------------------
+            Indicate object_id of user, group or spn
+ 
+        _default: "Ex: 88888888-4444-4444-4444-121212121212"
+        _pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+
+  "keyvaults":
+    Product_title_and_description_in_markdown: |-
+        Keyvaults
+        --------------------
+        Azure keyvaults safely store secret, keys and certificates.   
+        The first keyvault is special: must always exist and have name keyvaultname = collectionname (so if collectionName = 'ab-23-c4' then keyvaultname = 'ab-23-c4'
+
+    Product_item:
+      _type: object
+      _title_and_description_in_markdown: "{{ self.name }}"
+      _format: grid
+      _required: [ "name" ]
+      "name":
+        _type: string
+        _title_and_description_in_markdown: |-
+            Keyvault name prefix
+            --------------------
+            Must be lowercase alphanum no-dashes max18char  
+            OK:  'goodstorage2023'  
+            NOK: 'bad-STA_with-UPCASE_dashes-and_tooLoong'  
+
+        _options: 
+            xtra_Immutable: true
+
+        _pattern: '^[a-z0-9]{1,18}$'
+
+
+
+
+#
+#      "object_id": 
+#        _type: string
+#        _title_and_description_in_markdown: |-
+#            Object_id
+#            --------------------
+#            Indicate object_id of user, group or spn
+# 
+#        _default: "Ex: 88888888-4444-4444-4444-121212121212"
+#        _pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+#
+#
+#
+#      "sampleString": 
+#        _type: string
+#        _title_and_description_in_markdown: |-           #[opt]
+#            Internal alias                               #[opt] Raw-tex, no md; {{i0,i1,self,self.childprop...}} usefull when parent is array
+#            --------------------
+#            An internal alias to remember what this object_id corresponds to              # Use md in description
+# 
+#        _default: "Exs: 'group TeamWhisky' or 'user Siegi' or 'spn cicdWhisky1'"
+#
+#        # [opt] one of these
+#        _pattern: '^[0-9a-z- ]+$'
+#        _format: [color|date|datetime-local|email|month|password|number|range|tel|text|textarea|time|url|week]
+#        _format: <je:specialized string editor + its options>   >> https://github.com/json-editor/json-editor/blob/master/README.md#specialized-string-editors
+#        _enum: ["opt1", "opt2", "opt3"]     # [opt] enum deactivates other validating options like "format", ...
+#
+#
+#      "sampleNumber": 
+#        _type: [number|integer]      # number or integer: number ex: "-12345.678" , integer ex: "12345" 
+#        _title_and_description_in_markdown: |-                   #[opt]
+#            Sample number to pick                                #[opt] Raw-tex, no md; {{i0,i1,self,self.childprop...}} usefull when parent is array
+#            --------------------
+#            An internal sample number that is multipleOf 2 and -1100 <= number < 2200        # Use md in description
+#
+#        _default: Exs: nok 3 -10102 12200 2200 ok: 4 -1100 1998
+#        
+#        _multipleOf: 2                    # [opt]  
+#        _minimum: -1100                   # [opt]   -1100 =< number or -1100 < number (when excludeMinimum:true) 
+#        _exclusiveMinimum: false          # [opt]   default false
+#        _maximum: 2200                    # [opt]   number <= 2200 or number < 2200 (when exclusiveMaximum:true)
+#        _exclusiveMaximum: true           # [opt]   default false
+#        _format: <je:specialized string editor + its options>   >> https://github.com/json-editor/json-editor/blob/master/README.md#specialized-string-editors
+#        _enum: [3, 2200, 4]               # [opt] enum deactivates other validating options like "format", ...
+#
+#
+#      "sampleBoolean":
+#        _type: boolean
+#        _title_and_description_in_markdown: |-                #[opt]
+#            Sample boolean to pick                            #[opt] Raw-tex, no md; {{i0,i1,self,self.childprop...}} usefull when parent is array
+#            --------------------
+#            An sample boolean, either true or false           # Use md in description
+#        _default: true
+#
+#
+#      "sampleObject":
+#        _type: object
+#        _title_and_description_in_markdown: |-                 #[opt] 
+#            Sample obj to pick - {{ self.mypropX }}            #[opt] Raw-tex, no md; {{i0,i1,self,self.childprop...}} usefull when parent is array
+#            --------------------
+#            An sample object description                       # Use md in the description
+#        _format: grid                                          #[opt] grid, prefer grid when content is small and fits well in same row      
+#        "mypropX":
+#          <<generic type>> 
+#        "mypropY":
+#          <<generic type>> 
+#
+#
+#      "sampleArray":
+#        _type: array
+#        _title_and_description_in_markdown: |-
+#            Sample array to pick
+#            --------------------
+#            An sample array description
+#        _format: tabs            #[opt] tabs, tabs-top, table, null. default tabs
+#        _nr_of_items:            #[opt] 1, 0-3, 5, 6-9, 1-inf  default "0-inf"
+#        _items: {
+#          <<generic type>> 
+#        }
+#
+#

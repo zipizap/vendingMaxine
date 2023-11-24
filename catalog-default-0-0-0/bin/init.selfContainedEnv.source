@@ -107,10 +107,9 @@ show_some_parsed_vars() {
   echo "CollectionEditWorkdir:      ${CollectionEditWorkdir}"
   echo "PE_CONFIG_JSON_FILE:        ${PE_CONFIG_JSON_FILE}"
   echo "SchemaFilepath:             ${SchemaFilepath}"
-  echo "JsonInputFilepath:          ${JsonInputFilepath}"
+  echo "JsonInputFilepath:          ${JsonInputFilepath}"; cat ${JsonInputFilepath} | jq -C .
   echo "JsonOutputFilepath:         ${JsonOutputFilepath}"
-  echo "JsonOutputFile contents:"
-  cat ${JsonOutputFilepath} | jq -C .
+  echo "JsonOutputFile contents:"; cat ${JsonOutputFilepath} | jq -C .
 }
 
 

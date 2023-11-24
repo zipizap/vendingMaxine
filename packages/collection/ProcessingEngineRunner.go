@@ -221,6 +221,7 @@ func (per *ProcessingEngineRunner) run() (err error) {
 	// and save CollectionEditWorkdirTgzBlobId
 	{
 		catalogDirpath, err := cat.catalogDir()
+
 		if err != nil {
 			per.stateChange(per, "Failed", err)
 			return err
