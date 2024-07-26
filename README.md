@@ -1,4 +1,4 @@
 # vendingMaxine
-Developers can self-service products, and devops/sres can automate de provisioning lifecycle of those products
+Developers can self-service products, and platform/sres automate products lifecycle
 
-NOTE: not a typo, but a way to add "uniqueness" to the name
+NOTE: vendingMaxing is not a typo, but a way to add "uniqueness" to the name
