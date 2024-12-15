@@ -23,12 +23,13 @@ NOTE: Processing Engines need to be carefully engineered, to be do unsupervised/
 WebHome -->-- WebCollections 
                   |     
                   +-->-- WebCollectionNew  
-                  |             
                   |
-                  |-->-- WebCollectionEdit
+                  +-->-- WebCollectionEdit
+                  |
+                  +-->-- WebCollectionDashboard
 
 
-(1) user logged in
+(1) user logs.in
 
 ```
 
@@ -40,7 +41,7 @@ public mainpage:  **WebHome**
 
 Once user logs in: **WebCollections**
 - table showing all collections bellonging to the user
-- one collection per line, with collection name (linked to **WebCollectionHistory) and last-modification CollectionState, date, modified-by user 
+- one collection per line, with collection name (linked to **WebCollectionDashboard**) and last-modification CollectionState, date, modified-by user 
 -- If CollectionState is "Completed" or "Failed" (but not "Running") then show a button "Edit Collection" (leading to **WebCollectionEdit**) 
 - Somewhere have a button "Create collection" (leading to **WebCollectionNew**)
 
@@ -54,13 +55,15 @@ When user wants to create new collection: **WebCollectionNew**
 
 When user wants to edit collection: **WebCollectionEdit**
 - TODO
+- button ?"Save"
+-- ...
+- button "Cancel"
+-- ...
 
-
-**WebCollectionHistory** ?? not best name... 
-- show:
--- last-modification date, user, CollectionState
--- history of previous CollectionState(s) with dates
--- Creation date and user
+**WebCollectionDashboard** 
+- last-modification date, user, CollectionState
+- history of previous CollectionState(s) with dates and user
+- Creation date and user
 
 
 # Development
