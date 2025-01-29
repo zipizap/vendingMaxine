@@ -68,11 +68,10 @@ func LoadDbCollectionByName(name string) (*DbCollection, error) {
 // Save a DbCollection record into the database.
 // If the record exists, it will be updated. If it doesn't exist, it will be created.
 func save(theModelObjToSave interface{}, aDummyModelObj interface{}) error {
-
 	var count int64
 	// Check if the record exists based on the ID
-	gormModel := theModelObjToSave.(gorm.Model)
-	id := gormModel.ID
+	modelObj := theModelObjToSave.(*DbCollection)
+	id := modelObj.Model.ID
 	result := dbPkg.Db.Model(aDummyModelObj).Where("id = ?", id).Count(&count)
 	if result.Error != nil {
 		return fmt.Errorf("database error: %v", result.Error)
@@ -126,4 +125,3 @@ func (dbCol *DbCollection) SetName(name string) error {
 func (c *DbCollection) CollectionRevisions() []DbCollectionRevision {
     return c.DbCollectionRevisions
 }
-*/
