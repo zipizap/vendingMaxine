@@ -48,12 +48,9 @@ func (d *DbCollection) GetID() uint {
 }
 
 func (d *DbCollection) GetName() (string, error) {
-	// Name might change, so we reload it from the database
-	{
-		err := d.Reload(d)
-		if err != nil {
-			return "", err
-		}
+	// Name might change, so we always reload it from the database
+	if err := d.Reload(d); err != nil {
+		return "", err
 	}
 	return d.Name, nil
 }
