@@ -1,6 +1,7 @@
 Branding:
   Name: "My App"
-  # LogoPngFile: "myAppLogo.png"
+  Description: "My App is a great app"
+  LogoPngFile: "myAppLogo.png"
   
 DexConfig:
   ClientId: example-app
@@ -10,3 +11,4 @@ DexConfig:
 
 Database:
   SqliteFilename: "sqlite.db"
+

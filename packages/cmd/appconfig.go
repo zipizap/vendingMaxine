@@ -2,11 +2,29 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"reflect"
 	"strings"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
+
+// validateYAMLSyntax checks if the YAML file is syntactically correct
+func validateYAMLSyntax(filename string) error {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("error reading YAML file: %w", err)
+	}
+
+	var temp interface{}
+	if err := yaml.Unmarshal(data, &temp); err != nil {
+		return fmt.Errorf("invalid YAML syntax: %w", err)
+	}
+
+	return nil
+}
 
 // validateConfig checks if any field in the config struct has a zero value
 func validateConfig(cfg *appConfigType) error {
@@ -49,12 +67,17 @@ func validateConfig(cfg *appConfigType) error {
 
 // loadAppConfig reads the configuration from a YAML file (config.yaml),
 // and applies any environment variable overrides with the prefix "CONFIG_".
-func loadAppConfig() (cfg *appConfigType, err error) {
-	// Specify the config file name and type.
-	viper.SetConfigName("config") // expects config.yaml
+func loadAppConfig(configFilename string) (cfg *appConfigType, err error) {
+	// Validate YAML syntax first
+	if err := validateYAMLSyntax(configFilename); err != nil {
+		log.Printf("❌ YAML validation: %v", err)
+		return nil, fmt.Errorf("YAML validation failed: %w", err)
+	}
+	log.Printf("✓ YAML validation successful: %s", configFilename)
+
+	// Use the config file specified by the flag
+	viper.SetConfigFile(configFilename)
 	viper.SetConfigType("yaml")
-	// Add the current directory as the config file location.
-	viper.AddConfigPath(".")
 
 	// Set the environment variable prefix.
 	viper.SetEnvPrefix("CONFIG")
@@ -65,11 +88,7 @@ func loadAppConfig() (cfg *appConfigType, err error) {
 
 	// Read the config file.
 	if err = viper.ReadInConfig(); err != nil {
-		// If the config file is missing, decide whether to error out or proceed.
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("error reading config file: %w", err)
-		}
-		// Optionally, you could set some defaults here if needed.
+		return nil, fmt.Errorf("error reading config file %s: %w", configFilename, err)
 	}
 
 	// Unmarshal the configuration into our Config struct.

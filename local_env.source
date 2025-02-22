@@ -1,0 +1,1 @@
+export CONFIG_BRANDING_NAME="MyNameOverridenFromEnvVar"

@@ -12,8 +12,6 @@ set -o nounset
 
 cd "${__dir}"
 
-export GO111MODULES=on
-
 if ! [ -r go.mod ]
 then
   #published in internet would be: go mod init github.com/zipizap/myMod

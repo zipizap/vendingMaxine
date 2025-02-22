@@ -5,6 +5,9 @@ import (
 	"vendingMaxine/packages/collectionPkg/dbCollectionPkg"
 	"vendingMaxine/packages/gormCrud"
 	"vendingMaxine/packages/webserver"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/spf13/cobra"
 )
 
 // appConfigType represents the config.yaml and env-vars
@@ -31,6 +34,7 @@ Database:
 type appConfigType struct {
 	Branding struct {
 		Name        string `mapstructure:"Name"`
+		Description string `mapstructure:"Description"`
 		LogoPngFile string `mapstructure:"LogoPngFile"`
 	} `mapstructure:"Branding"`
 	DexConfig struct {
@@ -46,13 +50,13 @@ type appConfigType struct {
 
 var appConfig *appConfigType
 
-func appconfigInit() {
-	cfg, err := loadAppConfig()
+func appconfigInit(flagConfigFilename *string) {
+	cfg, err := loadAppConfig(*flagConfigFilename)
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
 	appConfig = cfg
-	// spew.Dump(cfg)
+	spew.Dump(cfg)
 }
 
 func dbInit() {
@@ -84,7 +88,21 @@ func webserverStart() {
 }
 
 func Execute() {
-	appconfigInit()
-	dbInit()
-	webserverStart()
+	var flagConfigFilename string
+	rootCmd := &cobra.Command{
+		Use:   "vendingMaxine",
+		Short: "VendingMaxine application",
+		Run: func(cmd *cobra.Command, args []string) {
+			appconfigInit(&flagConfigFilename)
+			dbInit()
+			webserverStart()
+		},
+	}
+
+	// Put additinoal command-line flags here
+	rootCmd.PersistentFlags().StringVar(&flagConfigFilename, "config", "config.yaml", "config file path")
+
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Error executing command: %v", err)
+	}
 }
