@@ -1,0 +1,12 @@
+Branding:
+  Name: "My App"
+  # LogoPngFile: "myAppLogo.png"
+  
+DexConfig:
+  ClientId: example-app
+  ClientSecret: xxxxx
+  ClientRedirectURL: http://zzzzz
+  DexIssuer: http://yyyyyy
+
+Database:
+  SqliteFilename: "sqlite.db"
