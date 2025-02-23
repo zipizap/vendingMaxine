@@ -1,4 +1,4 @@
-package collectionPkg
+package models
 
 import (
 	"fmt"

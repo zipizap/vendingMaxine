@@ -1,4 +1,4 @@
-package dbCollectionPkg
+package dbModels
 
 import (
 	"fmt"

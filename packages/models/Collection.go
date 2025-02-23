@@ -1,12 +1,12 @@
-package collectionPkg
+package models
 
 import (
 	"fmt"
-	"vendingMaxine/packages/collectionPkg/dbCollectionPkg"
+	"vendingMaxine/packages/models/dbModels"
 )
 
 type Collection struct {
-	dbCollectionIfc dbCollectionPkg.DbCollectionIfc // unexported field, only used by Collection package and not other packages
+	dbCollectionIfc dbModels.DbCollectionIfc // unexported field, only used by Collection package and not other packages
 }
 
 // Constructor creates dbCollectionIfc and public-methods use dbCollectionIfc to access r/w data
@@ -15,7 +15,7 @@ func NewCollection(name string) (*Collection, error) {
 	// create DbCollection into dbCollectionIfc and return Collection
 	c := &Collection{}
 	var err error
-	c.dbCollectionIfc, err = dbCollectionPkg.NewDbCollection(name)
+	c.dbCollectionIfc, err = dbModels.NewDbCollection(name)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func LoadCollection(colId string) (*Collection, error) {
 		return nil, err
 	}
 	c := &Collection{}
-	c.dbCollectionIfc, err = dbCollectionPkg.LoadDbCollection(dbColId)
+	c.dbCollectionIfc, err = dbModels.LoadDbCollection(dbColId)
 	if err != nil {
 		return nil, err
 	}
@@ -49,11 +49,7 @@ func (c *Collection) GetID() (colIdString string, err error) {
 }
 
 func (c *Collection) GetName() (string, error) {
-	name, err := c.dbCollectionIfc.GetName()
-	if err != nil {
-		return "", err
-	}
-	return name, nil
+	return c.dbCollectionIfc.GetName()
 }
 
 func (c *Collection) Rename(newName string) error {

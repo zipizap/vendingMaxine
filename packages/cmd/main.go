@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"log"
-	"vendingMaxine/packages/collectionPkg/dbCollectionPkg"
 	"vendingMaxine/packages/gormCrud"
+	"vendingMaxine/packages/models/dbModels"
 	"vendingMaxine/packages/webserver"
 
 	"github.com/davecgh/go-spew/spew"
@@ -68,7 +68,7 @@ func dbInit() {
 
 	// Migrate models
 	err := gormCrud.MigrateModels(
-		&dbCollectionPkg.DbCollection{},
+		&dbModels.DbCollection{},
 		// add here more models
 	)
 	if err != nil {
