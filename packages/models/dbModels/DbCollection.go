@@ -11,23 +11,37 @@ type DbCollectionIfc interface {
 	GetID() uint
 	GetName() (string, error)
 	SetName(string) error
+	GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error)
 }
 
 type DbCollection struct {
 	gormCrud.GormCrud[DbCollection]
-	Name string
+	Name           string
+	DbAccessPolicy *DbAccessPolicy // 1DbAccessPolicy-to-1DbCollection
 }
 
-func NewDbCollection(name string) (*DbCollection, error) {
+func DbCollectionNew(
+	name string,
+	adminUsers []string, adminGroups []string,
+	readerUsers []string, readerGroups []string,
+) (*DbCollection, error) {
 	dbC := &DbCollection{Name: name}
 	err := dbC.Save(dbC)
+	if err != nil {
+		return nil, err
+	}
+	dbC.DbAccessPolicy, err = DbAccessPolicyNew(dbC.ID, adminUsers, adminGroups, readerUsers, readerGroups)
+	if err != nil {
+		return nil, err
+	}
+	err = dbC.Save(dbC)
 	if err != nil {
 		return nil, err
 	}
 	return dbC, nil
 }
 
-func LoadDbCollection(dbColId uint) (*DbCollection, error) {
+func DbCollectionLoad(dbColId uint) (*DbCollection, error) {
 	dbC := &DbCollection{}
 	results, err := dbC.LoadWhere("id = ?", dbColId)
 	if err != nil {
@@ -65,4 +79,9 @@ func (d *DbCollection) SetName(newName string) error {
 	}
 	d.Name = newName
 	return d.Save(d)
+}
+
+func (d *DbCollection) GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error) {
+	dbAP, err = DbAccessPolicyLoad(d.DbAccessPolicy.ID)
+	return dbAP, err
 }

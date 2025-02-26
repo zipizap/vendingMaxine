@@ -6,7 +6,6 @@ import (
 	"vendingMaxine/packages/models/dbModels"
 	"vendingMaxine/packages/webserver"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +55,7 @@ func appconfigInit(flagConfigFilename *string) {
 		log.Fatalf("failed to load config: %v", err)
 	}
 	appConfig = cfg
-	spew.Dump(cfg)
+	// spew.Dump(cfg)
 }
 
 func dbInit() {

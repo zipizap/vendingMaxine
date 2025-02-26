@@ -6,16 +6,20 @@ import (
 )
 
 type Collection struct {
-	dbCollectionIfc dbModels.DbCollectionIfc // unexported field, only used by Collection package and not other packages
+	dbIfc dbModels.DbCollectionIfc // unexported field, only used by Collection package and not other packages
 }
 
 // Constructor creates dbCollectionIfc and public-methods use dbCollectionIfc to access r/w data
 
-func NewCollection(name string) (*Collection, error) {
+func CollectionNew(
+	collectionName string,
+	adminUsers []string, adminGroups []string,
+	readerUsers []string, readerGroups []string,
+) (*Collection, error) {
 	// create DbCollection into dbCollectionIfc and return Collection
 	c := &Collection{}
 	var err error
-	c.dbCollectionIfc, err = dbModels.NewDbCollection(name)
+	c.dbIfc, err = dbModels.DbCollectionNew(collectionName, adminUsers, adminGroups, readerUsers, readerGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -23,35 +27,57 @@ func NewCollection(name string) (*Collection, error) {
 }
 
 // Ex: col, err := LoadCollection("ColID-1234")
-func LoadCollection(colId string) (*Collection, error) {
+func CollectionLoad(colID string) (*Collection, error) {
 	// load DbCollection from dbCollectionIfc and return Collection
-	dbColId, err := colID_2_dbColID(colId)
+	colIDuint, err := convert_IDstring_2_IDuint(colID)
 	if err != nil {
 		return nil, err
 	}
 	c := &Collection{}
-	c.dbCollectionIfc, err = dbModels.LoadDbCollection(dbColId)
+	c.dbIfc, err = dbModels.DbCollectionLoad(colIDuint)
 	if err != nil {
 		return nil, err
 	}
 	return c, nil
 }
 
+func Collection_convert_ID_2_IDuint(ID string) (IDuint uint, err error) {
+	return convert_IDstring_2_IDuint(ID)
+}
+func Collection_convert_IDuint_2_ID(IDuint uint) (ID string) {
+	return convert_IDuint_2_IDstring("CollectionID", IDuint)
+}
+
 // Ex: "ColID-1234"
-func (c *Collection) GetID() (colIdString string, err error) {
-	colIdUint := c.dbCollectionIfc.GetID()
-	if colIdUint == 0 {
-		err = fmt.Errorf("colIdUint is 0, ?maybe collection does not exist in db?")
-		return colIdString, err
+func (o *Collection) GetID() (ID string, err error) {
+	IDuint := o.dbIfc.GetID()
+	if IDuint == 0 {
+		return "", fmt.Errorf("IDuint is 0, ?maybe collection does not exist in db?")
 	}
-	colIdString = dbColID_2_colID(colIdUint)
-	return colIdString, err
+	ID = Collection_convert_IDuint_2_ID(IDuint)
+	return ID, nil
 }
 
 func (c *Collection) GetName() (string, error) {
-	return c.dbCollectionIfc.GetName()
+	return c.dbIfc.GetName()
+}
+
+func (c *Collection) GetAccessPolicy() (*AccessPolicy, error) {
+	dbAP, err := c.dbIfc.GetDbAccessPolicy()
+	if err != nil {
+		return nil, err
+	}
+	dbAPIDuint := dbAP.GetID()
+	apIDuint := dbAPIDuint
+	apID := Collection_convert_IDuint_2_ID(apIDuint)
+	var ap *AccessPolicy
+	ap, err = AccessPolicyLoad(apID)
+	if err != nil {
+		return nil, err
+	}
+	return ap, nil
 }
 
 func (c *Collection) Rename(newName string) error {
-	return c.dbCollectionIfc.SetName(newName)
+	return c.dbIfc.SetName(newName)
 }
