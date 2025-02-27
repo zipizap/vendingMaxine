@@ -1,6 +1,7 @@
 package gormCrud
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"sync"
@@ -272,44 +273,77 @@ func TestReload(t *testing.T) {
 func TestCRUDModelCWithModelA(t *testing.T) {
 	setupTest(t, "")
 
-	// Create and save a TestModelA instance
-	modelA := &TestModelA{Name: "ModelA_ForC"}
-	err := modelA.Save(modelA)
-	assert.NoError(t, err)
+	// Create 5 TestModelA instances with 10 TestModelC items each to verify ordering
+	for i := 0; i < 5; i++ {
+		// Create and save a TestModelA instance
+		modelAName := fmt.Sprintf("ModelA_ForC_%d", i)
+		modelA := &TestModelA{Name: modelAName}
+		err := modelA.Save(modelA)
+		assert.NoError(t, err)
 
-	// Create and save multiple TestModelC instances related to TestModelA
-	modelC1 := &TestModelC{TestModelAID: modelA.ID, Description: "Detail 1"}
-	modelC2 := &TestModelC{TestModelAID: modelA.ID, Description: "Detail 2"}
+		// Create and save 10 TestModelC instances related to TestModelA with specific ordering
+		var modelCs []*TestModelC
+		for j := 0; j < 10; j++ {
+			modelC := &TestModelC{
+				TestModelAID: modelA.ID,
+				Description:  fmt.Sprintf("Detail %d-%d", i, j),
+			}
+			err = modelC.Save(modelC)
+			assert.NoError(t, err)
+			modelCs = append(modelCs, modelC)
+		}
 
-	err = modelC1.Save(modelC1)
-	assert.NoError(t, err)
-	err = modelC2.Save(modelC2)
-	assert.NoError(t, err)
+		// Read: Load related TestModelC instances
+		results, err := modelA.LoadWhere("id = ?", modelA.ID)
+		assert.NoError(t, err)
+		assert.Len(t, results, 1)
+		assert.Len(t, results[0].TestModelC, 10)
 
-	// Read: Load related TestModelC instances
-	results, err := modelA.LoadWhere("id = ?", modelA.ID)
-	assert.NoError(t, err)
-	assert.Len(t, results, 1)
-	assert.Len(t, results[0].TestModelC, 2)
+		// Verify order is maintained
+		for j := 0; j < 10; j++ {
+			expectedDescription := fmt.Sprintf("Detail %d-%d", i, j)
+			assert.Equal(t, expectedDescription, results[0].TestModelC[j].Description,
+				"Order should be maintained for TestModelC instances")
+		}
 
-	// Update: Modify a TestModelC instance
-	modelC1.Description = "Updated Detail 1"
-	err = modelC1.Save(modelC1)
-	assert.NoError(t, err)
+		// Update: Modify TestModelC instances
+		for j := 0; j < 10; j++ {
+			modelCs[j].Description = fmt.Sprintf("Updated Detail %d-%d", i, j)
+			err = modelCs[j].Save(modelCs[j])
+			assert.NoError(t, err)
+		}
 
-	// Verify update
-	updated, err := modelC1.LoadWhere("id = ?", modelC1.ID)
-	assert.NoError(t, err)
-	assert.Equal(t, "Updated Detail 1", updated[0].Description)
+		// Verify update and order maintenance after update
+		updatedResults, err := modelA.LoadWhere("id = ?", modelA.ID)
+		assert.NoError(t, err)
+		assert.Len(t, updatedResults, 1)
+		assert.Len(t, updatedResults[0].TestModelC, 10)
 
-	// Delete: Remove a TestModelC instance
-	err = modelC2.Delete(modelC2)
-	assert.NoError(t, err)
+		for j := 0; j < 10; j++ {
+			expectedDescription := fmt.Sprintf("Updated Detail %d-%d", i, j)
+			assert.Equal(t, expectedDescription, updatedResults[0].TestModelC[j].Description,
+				"Order should be maintained after updates")
+		}
 
-	// Verify deletion
-	deleted, err := modelC2.LoadWhere("id = ?", modelC2.ID)
-	assert.NoError(t, err)
-	assert.Empty(t, deleted, "TestModelC instance should be deleted")
+		// Delete: Remove every other TestModelC instance
+		for j := 0; j < 10; j += 2 {
+			err = modelCs[j].Delete(modelCs[j])
+			assert.NoError(t, err)
+		}
+
+		// Verify deletion and order maintenance of remaining items
+		finalResults, err := modelA.LoadWhere("id = ?", modelA.ID)
+		assert.NoError(t, err)
+		assert.Len(t, finalResults, 1)
+		assert.Len(t, finalResults[0].TestModelC, 5, "Should have 5 TestModelC instances left after deletion")
+
+		// The remaining items should be at positions 1, 3, 5, 7, 9 (indexes that weren't deleted)
+		for idx, j := range []int{1, 3, 5, 7, 9} {
+			expectedDescription := fmt.Sprintf("Updated Detail %d-%d", i, j)
+			assert.Equal(t, expectedDescription, finalResults[0].TestModelC[idx].Description,
+				"Remaining items should maintain relative ordering")
+		}
+	}
 }
 
 // TestCRUDModelAWithModelC tests CRUD operations creating TestModelA with associated TestModelC instances.

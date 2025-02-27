@@ -18,7 +18,7 @@ type User struct {
 	Active bool
 	// 1User-to-1Profile relationship
 	Profile *Profile
-	// 1User-to-manyAddress relationship
+	// 1User-to-manyAddress relationship  (preserves order of elements written/loaded)
 	Addresses []*Address
 	// manyUser-to-1ChessClub - 2 fields: ChessClub and ChessClubID (mandatory!)
 	ChessClub   *ChessClub
