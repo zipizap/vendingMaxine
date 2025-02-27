@@ -1,15 +1,3 @@
-## Sparse notes
-
-- proj survival depends on splitting small&easy tasks
-
-- better simple and clear (even if longer) than complex and terse
-
-- userlogin: for now just have a stub with username "admin", email "admin@local.local", uniqueID "00000000-0000-0000-0000-000000000000"
-
-- Drawio diagram: prefer web version (desktop-app requires ?root-suid? wtf?)  
-  https://app.diagrams.net/
-
-
 
 ## How to model objects with supporting db-structs
 
@@ -19,10 +7,10 @@ This was "T005) MyObj struct -> MyObj struct&Methods +  DbMyObjIfc + DbMyObj db-
 
 ```
 *package*       *type*            *func*
-models         Obj              .GetZz()   .SetZz()    (uses DbObjIfc)
-dbModels       DbObjIfc         .GetZz()   .SetZz()    (ifc definition)   
-                 DbObj            .GetZz()   .SetZz()    (ifc implementation, saves/reloads/etc with db)[1]
-                 DbObj            .Zz                    (db-struct field)
+models          Obj              .GetZz()   .SetZz()    (uses DbObjIfc)
+dbModels        DbObjIfc         .GetZz()   .SetZz()    (ifc definition)   
+                DbObj            .GetZz()   .SetZz()    (ifc implementation, saves/reloads/etc with db)[1]
+                DbObj            .Zz                    (db-struct field)
 
 [1] if Zz is a changeable field, then .GetZz()/.SetZz() funcs should internally start with .Reload()'ing from the db, to assure not using outdated values (ie, if another thread has changed the value in the db)
 ```
@@ -52,9 +40,10 @@ dbModels       DbObjIfc         .GetZz()   .SetZz()    (ifc definition)
                 - Field/Ops methods:
                     (*MyObj).GetZz() (Zz, error)
                     (*MyObj).SetZz(newZz) error
-                - Optional methods if relates with another ModelB:
-                    (*MyObj).GetModelB() *ModelB
-                    (*MyObj).GetModelBID() string
+                - Optional methods if relates with another ModelB
+                    (*MyObj).GetModelB() *ModelB   // if DbMyObj has field *DbModelB
+                    or
+                    (*MyObj).GetModelBID() string  // if DbMyObj has a field DbModelBID uint
 
 ### DbMyObjIfc
                 - interface for DbMyObj, exposing method(s) GetZz() SetZz() for fields of the db-struct, and operations on them
@@ -65,8 +54,9 @@ dbModels       DbObjIfc         .GetZz()   .SetZz()    (ifc definition)
                     GetZz() (Zz, error)
                     SetZz(newZz) error
                 - Optional methods if relates with another dbModelB:
-                    (*DbMyObj).GetDbModelB() *DbModelB
-                    (*DbMyObj).GetDbModelBID() uint
+                    (*DbMyObj).GetDbModelB() *DbModelB  // if DbMyObj has field *DbModelB
+                    or
+                    (*DbMyObj).GetDbModelBID() uint     // if DbMyObj has a field DbModelBID uint
 
 ### DbMyObj
                 - db-struct and db-methods, intended for Gorm, and to deal with db details and operations
@@ -81,8 +71,9 @@ dbModels       DbObjIfc         .GetZz()   .SetZz()    (ifc definition)
                     GetZz() (Zz, error)
                     SetZz(newZz) error
                 - Optional methods if relates with another dbModelB:
-                    (*DbMyObj).GetDbModelB() *DbModelB
-                    (*DbMyObj).GetDbModelBID() uint
+                    (*DbMyObj).GetDbModelB() *DbModelB  // if DbMyObj has field *DbModelB
+                    or
+                    (*DbMyObj).GetDbModelBID() uint     // if DbMyObj has a field DbModelBID uint
 
 ### MyObj + DbMyObjIfc + DbMyObj
                 - new db-fields should be added to db-struct + DbMyObjIfc + MyObj, with GetZzz() and SetZzz() methods
@@ -147,83 +138,5 @@ func (d *DbCollection) GetName() (string, error){
 func (d *DbCollection) SetName(newName string) error { d.Reload(), d.Name = newName, d.Save(d) }
 ``` 
 
-
-
-
-## TODO
-
-
-- T999) clean existing TOREVIEW, TBD, TODO, WIP
-
-
-
-### TODO-future-versions?
-
-- fix deadlock-by-silent-runner-death: if a runner gets unexpectedly killed (or server gets killed), the collection will keep the Ongoing state forever. There should be a mechanism (api call or whatever) to change such states in the db to Failed-or-appropriate, so that it can be restarted by the user
-
-- add governance:
-  - implement userlogin via DEX
-  - WebCollectionNew should ask user which user/group-objid should be owners of the collection
-  - Collection should store field with owners user/group-objids
-  - each http request shuold validate and let current user access only the collections he is owner of (deny all other requests for collections not-owner)
-  - in-some-web there should be possible to update the user/group-objids
-
-- WebCollectionDelete + etc
-- CollectionNew and CollectionDelete scripts: \CatalogBlueprint\{CollectionNew,CollectionDelete} 
-
-
-## DONE
-- T002) Add a CollectionID field, and use it internally instead of CollectionName. So different users can have collections of same name but different id
-
-- T005) helper-prefixes on ObjectsIDs, like:
-          DbCollection.ID    as  <UUID>
-          CollectionID()     as  "ColID-<DbCollection.ID>"
-        Applied to all suitable objects
-        This shuold provide a clear and consistent way to identify objects in the code/debug/logs, and avoid confusion between objects of different types.
-
-- T004) RevStates: from map to []RevState, to allow for easy ordering of states and containement of other props specific to each state (as inputs, outputs, etc)
-- T003) RevStates: no longer array, use map insted to allow free containment other props specific to each state (as inputs, outputs, etc)
-- T001) rename "CollectionTemplate" with "CatalogBlueprint"
-  - diagram
-  - readme
-
-
-
-
-## Deprecated ideas
-- structures with db-struct:
-  - avoid "dynamic" fields, prefer getter-funcs + _internal field 
-
-    I consider "dynamic"-fields, fields with a value that might change in the db during execution, and so the value in the struct might become outdated, and so its prefereable to have a getter-func that fetches the value from the db when called.
-    It is also simpler to do it consistently in all code objects. The db is a local db, doesnt matter we call it a lot, and avoids unwanted oudated-value-bugs.
-    The _internal field is a hacky trick to have a tmp var for the getter-funcs to use
-    Ex: 
-    ```
-    /*
-    // avoid
-    {
-      CollectionRevisions  []CollectionRevision
-    }
-    */
-
-    // prefer instead
-    {
-        _collectionRevisions []CollectionRevision      // internal field, not for direct access, use its getter funcs instead
-    }
-    func CollectionRevisions() []CollectionRevision    // only func that can set/upd/get _collectionRevisions
-    ```
-
-
-
-## React
-- https://github.com/rjsf-team/react-jsonschema-form
-- React POC tests: https://stackblitz.com/edit/react-dwbpzf?file=src%2FGenericForm.tsx
-
-- Notes: 
-  - TOREVIEW - to be reviewed and updated
-  - TBD      - to be further decided in the future
-  - TODO
-  - WIP      - work in progress
-  - DONE
-
+See also a complete reference implementation in files packages/models/collection.go and packages/dbModels/dbCollection.go 
 
