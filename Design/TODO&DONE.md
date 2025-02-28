@@ -14,6 +14,39 @@
 
 ## TODO
 
+WIP - models and dbModels foundation
+  + ColRev and up:
+    + check ColRev
+    + integrate ColRev into Collection
+  - ColRev and down:
+    - check state transitions: validated and part of RevState
+
+  - IsEditable: RevState, ColRev, Collection
+
+  - logic: Col creates ColRev which creates RevState. What are RevState args, so that ColRev and Col set them
+
+
+
+
+- T006) add description field to the following types.
+  It should initially be set by constructor, with getter/setter methods GetDescription() SetDescription()
+  - Collection (and underlying DbCollection)
+  - ColRevision (and DbColRevision)
+
+- Add new RevState: "Ready"
+  When everything is done and complete, it should become "Ready"
+    - ProvisioningCompleted should transition to "Ready"
+
+- ?? As of now, a new collection is created with empty Col.ColRevisions[], and some methods have to check if ColRevisions[] is empty or not (some related to ColRevisionLatest).
+  If we added the RevState "Ready" as the default RevState of new ColRevisions, then ColColRevisions[] would never be empty and that would simplify some code in the other methods.
+  However, that would mean we could have 2 different RevState flows:
+    - the CollectionEditFlow: from CollectionEditOngoing ... ProvisioningComplete -> Ready
+    - a new CollectionCreatedFlow: just one state "Ready"
+      And when new collection is created then Col.ColRevisions[] would be non-empty and contain this Ready state.
+
+
+- When RevState is "ProvisiningFailed". there is no next-state possible. How to solve this?
+
 
 - T999) clean existing TOREVIEW, TBD, TODO, WIP
 

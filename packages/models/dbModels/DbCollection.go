@@ -2,6 +2,7 @@ package dbModels
 
 import (
 	"fmt"
+	"time"
 	"vendingMaxine/packages/gormCrud"
 )
 
@@ -12,12 +13,17 @@ type DbCollectionIfc interface {
 	GetName() (string, error)
 	SetName(string) error
 	GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error)
+	GetDbColRevisions() (dbColRevs []*DbColRevision, err error)
+	AppendDbColRevision() error
+	GetCreationDate() (time.Time, error)
+	GetModDate() (time.Time, error)
 }
 
 type DbCollection struct {
 	gormCrud.GormCrud[DbCollection]
 	Name           string
-	DbAccessPolicy *DbAccessPolicy // 1DbAccessPolicy-to-1DbCollection
+	DbAccessPolicy *DbAccessPolicy  // 1DbAccessPolicy-to-1DbCollection
+	DbColRevisions []*DbColRevision // 1DbCollection-to-manyDbColRevisions, loaded on demand by GetDbColRevisions()
 }
 
 func DbCollectionNew(
@@ -84,4 +90,52 @@ func (d *DbCollection) SetName(newName string) error {
 func (d *DbCollection) GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error) {
 	dbAP, err = DbAccessPolicyLoad(d.DbAccessPolicy.ID)
 	return dbAP, err
+}
+
+func (d *DbCollection) GetDbColRevisions() (dbColRevs []*DbColRevision, err error) {
+	if err := d.Reload(d); err != nil {
+		return nil, err
+	}
+
+	// Reload the associated DbColRevisions
+	dbColRevs = []*DbColRevision{}
+	dbColRev := &DbColRevision{}
+	dbColRevsResults, err := dbColRev.LoadWhere("db_collection_id = ?", d.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// use DbColRevisionLoad() to assure loading of DbColRevision with all its fields
+	for i, a_dbColRev := range dbColRevsResults {
+		dbColRevsResults[i], err = DbColRevisionLoad(a_dbColRev.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(dbColRevsResults) > 0 {
+		dbColRevs = append(dbColRevs, dbColRevsResults...)
+	}
+	d.DbColRevisions = dbColRevs
+
+	return d.DbColRevisions, nil
+}
+
+func (d *DbCollection) AppendDbColRevision() error {
+	_, err := DbColRevisionNew(d.ID)
+	return err
+}
+
+func (d *DbCollection) GetCreationDate() (time.Time, error) {
+	if err := d.Reload(d); err != nil {
+		return time.Time{}, err
+	}
+	return d.CreatedAt, nil
+}
+
+func (d *DbCollection) GetModDate() (time.Time, error) {
+	if err := d.Reload(d); err != nil {
+		return time.Time{}, err
+	}
+	return d.UpdatedAt, nil
 }

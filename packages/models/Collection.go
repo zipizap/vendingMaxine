@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"time"
 	"vendingMaxine/packages/models/dbModels"
 )
 
@@ -80,4 +81,71 @@ func (c *Collection) GetAccessPolicy() (*AccessPolicy, error) {
 
 func (c *Collection) Rename(newName string) error {
 	return c.dbIfc.SetName(newName)
+}
+
+func (c *Collection) GetColRevisions() (colRevs []*ColRevision, err error) {
+	dbColRevs, err := c.dbIfc.GetDbColRevisions()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(dbColRevs) == 0 {
+		return colRevs, nil
+	}
+
+	colRevs = make([]*ColRevision, 0, len(dbColRevs))
+	for _, dbColRev := range dbColRevs {
+		colRev := &ColRevision{dbIfc: dbColRev}
+		colRevs = append(colRevs, colRev)
+	}
+
+	return colRevs, nil
+}
+
+// if ColRevisionLatest does not exist (happens when collection.ColRevisions is empty array)
+// then it returns nil, nil
+func (c *Collection) GetColRevisionLatest() (*ColRevision, error) {
+	colRevs, err := c.GetColRevisions()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(colRevs) == 0 {
+		return nil, nil
+	}
+
+	return colRevs[len(colRevs)-1], nil
+}
+
+// If ColRevisionLatest does not exist, then returns "", nil
+func (c *Collection) GetRevStateLatestName() (string, error) {
+	colRevLatest, err := c.GetColRevisionLatest()
+	if err != nil {
+		return "", err
+	}
+	if colRevLatest == nil {
+		return "", nil
+	}
+	return colRevLatest.GetRevStateLatestName()
+}
+
+func (c *Collection) AppendColRevision() error {
+	return c.dbIfc.AppendDbColRevision()
+}
+
+func (c *Collection) GetCreationDate() (time.Time, error) {
+	return c.dbIfc.GetCreationDate()
+}
+
+func (c *Collection) GetModDate() (time.Time, error) {
+	colRevLatest, err := c.GetColRevisionLatest()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if colRevLatest == nil {
+		return c.dbIfc.GetModDate()
+	}
+
+	return colRevLatest.GetModDate()
 }
