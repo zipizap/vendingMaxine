@@ -100,6 +100,16 @@ func (c *ColRevision) GetRevStateLatest() (*RevState, error) {
 	return revStates[len(revStates)-1], nil
 }
 
+// GetRevStateLatestName returns the name of the latest RevState
+func (c *ColRevision) GetRevStateLatestName() (string, error) {
+	return c.dbIfc.GetDbRevStateLatestName()
+}
+
+// AppendRevState adds a new RevState to the collection revision
+func (c *ColRevision) AppendRevState(revStateName string, userWhoTriggered string, logs []byte) error {
+	return c.dbIfc.AppendDbRevState(revStateName, userWhoTriggered, logs)
+}
+
 // GetCreationDate returns the creation date of the first RevState
 func (c *ColRevision) GetCreationDate() (time.Time, error) {
 	return c.dbIfc.GetCreationDate()
@@ -113,16 +123,6 @@ func (c *ColRevision) GetModDate() (time.Time, error) {
 // IsEditable returns whether the collection revision is editable
 func (c *ColRevision) IsEditable() (bool, error) {
 	return c.dbIfc.IsEditable()
-}
-
-// GetRevStateLatestName returns the name of the latest RevState
-func (c *ColRevision) GetRevStateLatestName() (string, error) {
-	return c.dbIfc.GetDbRevStateLatestName()
-}
-
-// AppendRevState adds a new RevState to the collection revision
-func (c *ColRevision) AppendRevState(revStateName string, userWhoTriggered string, logs []byte) error {
-	return c.dbIfc.AppendDbRevState(revStateName, userWhoTriggered, logs)
 }
 
 // GetCollection returns the Collection this revision belongs to

@@ -53,20 +53,6 @@ func DbColRevisionLoad(dbColRevID uint) (*DbColRevision, error) {
 	}
 
 	dbColRev = results[0]
-	// For now its better to load the associated DbRevStates on demand,
-	// by using .GetDbRevStates()
-	/*
-		// Load associated DbRevStates
-		dbRevStates := []*DbRevState{}
-		dbRevState := &DbRevState{}
-		dbRevStatesResults, err := dbRevState.LoadWhere("db_col_revision_id = ?", dbColRev.ID)
-		if err != nil {
-			return nil, err
-		}
-		dbRevStates = append(dbRevStates, dbRevStatesResults...)
-		dbColRev.DbRevStates = dbRevStates
-	*/
-
 	return dbColRev, nil
 }
 
@@ -111,20 +97,6 @@ func (d *DbColRevision) GetDbRevStates() ([]*DbRevState, error) {
 	return d.DbRevStates, nil
 }
 
-// GetCreationDate returns the creation date of the first RevState
-func (d *DbColRevision) GetCreationDate() (time.Time, error) {
-	return d.CreatedAt, nil
-}
-
-// GetModDate returns the update date of the most-recent RevState
-func (d *DbColRevision) GetModDate() (time.Time, error) {
-	latestState, err := d.GetDbRevStateLatest()
-	if err != nil {
-		return d.UpdatedAt, nil // Fall back to revision's update time if no states exist
-	}
-	return latestState.UpdatedAt, nil
-}
-
 // GetDbRevStateLatest returns the latest DbRevState
 func (d *DbColRevision) GetDbRevStateLatest() (dbRevState *DbRevState, err error) {
 	dbRevStates, err := d.GetDbRevStates()
@@ -147,6 +119,28 @@ func (d *DbColRevision) GetDbRevStateLatestName() (string, error) {
 	return latestDbRevState.GetRevStateName()
 }
 
+// AppendDbRevState adds a new RevState to the collection revision.
+// Its a simple wrapper around DbRevStateNew(), enforcing the DbColRevisionID.
+func (d *DbColRevision) AppendDbRevState(revStateName string, userWhoTriggered string, logs []byte) error {
+	_, err := DbRevStateNew(d.ID, revStateName, userWhoTriggered, logs)
+	return err
+}
+
+// GetCreationDate returns the creation date of the first RevState
+func (d *DbColRevision) GetCreationDate() (time.Time, error) {
+	return d.CreatedAt, nil
+}
+
+// GetModDate returns the update date of the most-recent RevState,
+// or if no states exist the update date of the revision dbColRevision itself
+func (d *DbColRevision) GetModDate() (time.Time, error) {
+	latestState, err := d.GetDbRevStateLatest()
+	if err != nil {
+		return d.UpdatedAt, nil // Fall back to revision's update time if no states exist
+	}
+	return latestState.UpdatedAt, nil
+}
+
 // IsEditable returns whether the collection revision is editable
 func (d *DbColRevision) IsEditable() (bool, error) {
 	revStates, err := d.GetDbRevStates()
@@ -160,14 +154,26 @@ func (d *DbColRevision) IsEditable() (bool, error) {
 	return latestRevState.IsEditable()
 }
 
-// AppendDbRevState adds a new RevState to the collection revision.
-// Its a simple wrapper around DbRevStateNew() which sets the DbColRevisionID.
-func (d *DbColRevision) AppendDbRevState(revStateName string, userWhoTriggered string, logs []byte) error {
-	_, err := DbRevStateNew(d.ID, revStateName, userWhoTriggered, logs)
-	return err
-}
+/*
+IsValidRevStateTransition checks if a proposed state transition is valid.
 
-// IsValidRevStateTransition checks if a state transition is allowed
+RevStates flow diagram:
+
+	------>  Ready   <-----------------------------------------------
+	|	     	|                                                   |
+	|           v                                                   |
+	|  	CollectionEditOngoing   ------->  CollectionEditCancelled >--
+	|	        v
+	|	CollectionEditCompleted
+	|	        |
+	|	        v
+	|	ProvisioningOngoing     ------->  ProvisioningFailed
+	|	        v
+	|   ProvisioningCompleted
+	|           |
+	|           v
+	-------------
+*/
 func (d *DbColRevision) IsValidRevStateTransition(newStateName string) (isValid bool, err error) {
 	var currStateName string
 	currStateName, err = d.GetDbRevStateLatestName()
@@ -183,8 +189,8 @@ func (d *DbColRevision) IsValidRevStateTransition(newStateName string) (isValid 
 	}
 
 	if validNextStates, exists := validTransitions[currStateName]; exists {
-		for _, validState := range validNextStates {
-			if validState == newStateName {
+		for _, validNextState := range validNextStates {
+			if validNextState == newStateName {
 				return true, nil
 			}
 		}
