@@ -14,38 +14,61 @@
 
 ## TODO
 
-WIP - models and dbModels foundation
+T007) - models and dbModels foundation
   + ColRev and up:
     + check ColRev
     + integrate ColRev into Collection
-  - ColRev and down:
-    - check state transitions: validated and part of RevState
+  + ColRev 
+    + update state transitions ColRev-N, ColRev-N+1
+      + IsValidRevStateTransition() code
+      + rename func IsValidRevStateTransition()
+    - ColRev funcs to review:
+      + constructor of RevState shuold use the IsValidRevStateTransition()
+      + ColRev.IsEditable() should use ColRev.IsValidRevStateTransition("CollectionEditOngoing") 
+  + IsEditable: 
+    + ColRev
+    + Collection
 
-  - IsEditable: RevState, ColRev, Collection
+  - Improve the logic of IsValidRevStateTransition()
+    - first move all logic of IsValidRevStateTransition() out of RevState, and into ColRev - this logic should be in ColRev
+    - add Col.SwitchToNewState(newState) that will call ColRev.xxx funcs to change ColRev state
+
+    ColRev.IsValidRevStateTransition() shuold get the currentState either from the actual ColRev or from a previous ColRev (if the current one is nil) 
+    // IsValidRevStateTransition(currentState, newState) 
+    //
+    // If no RevState exists in this ColRev
+    // a) try to get the stateLatest from the previous ColRev
+    // b) if it also does not exist, then assume this is the first RevState of first ColRev and assume the state is "Ready"
+    // Maybe this logic should be moved to the ColRevision level or even to the Collection level, so that there the currState can be determined
+    // (from this or a previous ColRevs) and then passed into here as a parameter
+    // (And cleanup current hacky logic that hardcodes `currStateName = "Ready"`
+
+
+  - RevState
+    - integration with ColRev
+    - RevState code review
+
+  - ColRev: implement user-who-triggered to pass it down to RevState (or improve this user-identification somehow and then align to it RevState and ColRev)
+
+
 
   - logic: Col creates ColRev which creates RevState. What are RevState args, so that ColRev and Col set them
 
 
 
+- Tzzz) As of now, a new collection is created with empty Col.ColRevisions[], and some methods have to check if ColRevisions[] is empty or not (some related to ColRevisionLatest).
+  If we define the RevState "Ready" as the final-RevState of any ColRev that has ended correctly, then when a new collection is created, we could add an initial ColRev with RevState "Ready", that signals that a future ColRev can be created from this "Ready" to proceed
+  And this way, when a new collection is created, its  Col.ColRevisions[] would be filled with an initial ColRev with RevState "Ready". This way, we would avoid the need to check if ColRevisions[] is empty or not, and we could always use ColRevisionLatest() without checking if it is nil or not.
+  This would also allow to have a consistent behavior in the code, and avoid some bugs that could arise from the current behavior.
 
-- T006) add description field to the following types.
+
+
+- Tzzz) add description field to the following types.
   It should initially be set by constructor, with getter/setter methods GetDescription() SetDescription()
   - Collection (and underlying DbCollection)
   - ColRevision (and DbColRevision)
 
-- Add new RevState: "Ready"
-  When everything is done and complete, it should become "Ready"
-    - ProvisioningCompleted should transition to "Ready"
-
-- ?? As of now, a new collection is created with empty Col.ColRevisions[], and some methods have to check if ColRevisions[] is empty or not (some related to ColRevisionLatest).
-  If we added the RevState "Ready" as the default RevState of new ColRevisions, then ColColRevisions[] would never be empty and that would simplify some code in the other methods.
-  However, that would mean we could have 2 different RevState flows:
-    - the CollectionEditFlow: from CollectionEditOngoing ... ProvisioningComplete -> Ready
-    - a new CollectionCreatedFlow: just one state "Ready"
-      And when new collection is created then Col.ColRevisions[] would be non-empty and contain this Ready state.
-
-
-- When RevState is "ProvisiningFailed". there is no next-state possible. How to solve this?
+- Tzzz) When RevState is "ProvisiningFailed". there is no next-state possible. How to solve this?
 
 
 - T999) clean existing TOREVIEW, TBD, TODO, WIP
@@ -68,6 +91,11 @@ WIP - models and dbModels foundation
 
 
 ## DONE
++ T006) Add new RevState: "Ready"
+    + When everything is done and complete, it should become "Ready"
+    + ProvisioningCompleted should transition to "Ready"
+
+
 - T002) Add a CollectionID field, and use it internally instead of CollectionName. So different users can have collections of same name but different id
 
 - T005) helper-prefixes on ObjectsIDs, like:

@@ -14,7 +14,7 @@ type DbCollectionIfc interface {
 	SetName(string) error
 	GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error)
 	GetDbColRevisions() (dbColRevs []*DbColRevision, err error)
-	AppendDbColRevision() error
+	AppendDbColRevision(initialRevStateName string, userWhoTriggered string) error
 	GetCreationDate() (time.Time, error)
 	GetModDate() (time.Time, error)
 }
@@ -30,16 +30,37 @@ func DbCollectionNew(
 	name string,
 	adminUsers []string, adminGroups []string,
 	readerUsers []string, readerGroups []string,
+	userWhoTriggered string,
 ) (*DbCollection, error) {
-	dbC := &DbCollection{Name: name}
+	dbC := &DbCollection{}
+	// Name
+	dbC.Name = name
+	// Saving sets the dbC.ID, needed for DbColRevisionNew()
 	err := dbC.Save(dbC)
 	if err != nil {
 		return nil, err
 	}
+
+	// DbColRevision
+	initialRevStateName := "Ready"
+	dbColRev, err := DbColRevisionNew(dbC.ID, initialRevStateName, userWhoTriggered)
+	if err != nil {
+		// Delete the DbCollection if creating the revision failed
+		if err := dbC.Delete(dbC); err != nil {
+			// Log the error but continue with the original error
+			fmt.Printf("Failed to clean up DbCollection after previous error: %v\n", err)
+		}
+		return nil, err
+	}
+	dbC.DbColRevisions = append(dbC.DbColRevisions, dbColRev)
+
+	// DbAccessPolicy
 	dbC.DbAccessPolicy, err = DbAccessPolicyNew(dbC.ID, adminUsers, adminGroups, readerUsers, readerGroups)
 	if err != nil {
 		return nil, err
 	}
+
+	// final save
 	err = dbC.Save(dbC)
 	if err != nil {
 		return nil, err
@@ -121,8 +142,8 @@ func (d *DbCollection) GetDbColRevisions() (dbColRevs []*DbColRevision, err erro
 	return d.DbColRevisions, nil
 }
 
-func (d *DbCollection) AppendDbColRevision() error {
-	_, err := DbColRevisionNew(d.ID)
+func (d *DbCollection) AppendDbColRevision(initialRevStateName string, userWhoTriggered string) error {
+	_, err := DbColRevisionNew(d.ID, initialRevStateName, userWhoTriggered)
 	return err
 }
 

@@ -16,11 +16,12 @@ func CollectionNew(
 	collectionName string,
 	adminUsers []string, adminGroups []string,
 	readerUsers []string, readerGroups []string,
+	userWhoTriggered string,
 ) (*Collection, error) {
 	// create DbCollection into dbCollectionIfc and return Collection
 	c := &Collection{}
 	var err error
-	c.dbIfc, err = dbModels.DbCollectionNew(collectionName, adminUsers, adminGroups, readerUsers, readerGroups)
+	c.dbIfc, err = dbModels.DbCollectionNew(collectionName, adminUsers, adminGroups, readerUsers, readerGroups, userWhoTriggered)
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +130,8 @@ func (c *Collection) GetRevStateLatestName() (string, error) {
 	return colRevLatest.GetRevStateLatestName()
 }
 
-func (c *Collection) AppendColRevision() error {
-	return c.dbIfc.AppendDbColRevision()
+func (c *Collection) AppendColRevision(initialRevStateName string, userWhoTriggered string) error {
+	return c.dbIfc.AppendDbColRevision(initialRevStateName, userWhoTriggered)
 }
 
 func (c *Collection) GetCreationDate() (time.Time, error) {
@@ -148,4 +149,20 @@ func (c *Collection) GetModDate() (time.Time, error) {
 	}
 
 	return colRevLatest.GetModDate()
+}
+
+// IsEditable returns whether the collection in the current state can start a collectionEdit
+func (c *Collection) IsEditable() (bool, error) {
+	colRevLatest, err := c.GetColRevisionLatest()
+	if err != nil {
+		return false, err
+	}
+
+	// If there's no revision yet, default to not editable
+	if colRevLatest == nil {
+		return false, nil
+	}
+
+	// Get the latest revision state and check if it's editable
+	return colRevLatest.IsEditable()
 }

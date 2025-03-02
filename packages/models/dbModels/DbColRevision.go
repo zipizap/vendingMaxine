@@ -28,11 +28,24 @@ type DbColRevision struct {
 }
 
 // DbColRevisionNew creates a new DbColRevision
-func DbColRevisionNew(dbCollectionID uint) (*DbColRevision, error) {
-	dbColRev := &DbColRevision{
-		DbCollectionID: dbCollectionID,
+func DbColRevisionNew(dbCollectionID uint, initialRevStateName string, userWhoTriggered string) (dbColRev *DbColRevision, err error) {
+	dbColRev = &DbColRevision{}
+
+	// Set dbColRev.DbCollectionID
+	dbColRev.DbCollectionID = dbCollectionID
+	// Save the DbColRevision to sets its ID required for DbRevStateNew()
+	err = dbColRev.Save(dbColRev)
+	if err != nil {
+		return nil, err
 	}
-	err := dbColRev.Save(dbColRev)
+
+	// Set dbColRev.DbRevStates
+	initialDbRevState, err := DbRevStateNew(dbColRev.ID, initialRevStateName, userWhoTriggered, nil)
+	if err != nil {
+		return nil, err
+	}
+	dbColRev.DbRevStates = append(dbColRev.DbRevStates, initialDbRevState)
+	err = dbColRev.Save(dbColRev)
 	if err != nil {
 		return nil, err
 	}
@@ -97,24 +110,27 @@ func (d *DbColRevision) GetDbRevStates() ([]*DbRevState, error) {
 	return d.DbRevStates, nil
 }
 
-// GetDbRevStateLatest returns the latest DbRevState
+// GetDbRevStateLatest returns the latest DbRevState or nil if none exists
 func (d *DbColRevision) GetDbRevStateLatest() (dbRevState *DbRevState, err error) {
 	dbRevStates, err := d.GetDbRevStates()
 	if err != nil {
 		return nil, err
 	}
 	if len(dbRevStates) == 0 {
-		return nil, fmt.Errorf("no DbRevStates found for DbColRevision %d", d.ID)
+		return nil, nil
 	}
 	dbRevState = dbRevStates[len(dbRevStates)-1]
 	return dbRevState, nil
 }
 
-// GetDbRevStateLatestName returns the name of the latest RevState
+// GetDbRevStateLatestName returns the name of the latest RevState, or "" if none exists
 func (d *DbColRevision) GetDbRevStateLatestName() (string, error) {
 	latestDbRevState, err := d.GetDbRevStateLatest()
 	if err != nil {
 		return "", err
+	}
+	if latestDbRevState == nil {
+		return "", nil
 	}
 	return latestDbRevState.GetRevStateName()
 }
@@ -131,49 +147,60 @@ func (d *DbColRevision) GetCreationDate() (time.Time, error) {
 	return d.CreatedAt, nil
 }
 
-// GetModDate returns the update date of the most-recent RevState,
-// or if no states exist the update date of the revision dbColRevision itself
+// GetModDate returns the update date of the most-recent RevState
 func (d *DbColRevision) GetModDate() (time.Time, error) {
 	latestState, err := d.GetDbRevStateLatest()
 	if err != nil {
-		return d.UpdatedAt, nil // Fall back to revision's update time if no states exist
+		return time.Time{}, err
 	}
+	// If no RevState exists, return the DbColRevision's UpdatedAt
+	if latestState == nil {
+		return d.UpdatedAt, nil
+	}
+
 	return latestState.UpdatedAt, nil
 }
 
-// IsEditable returns whether the collection revision is editable
+// IsEditable returns whether the collection revision in the current state can start a collectionEdit
 func (d *DbColRevision) IsEditable() (bool, error) {
-	revStates, err := d.GetDbRevStates()
-	if err != nil {
-		return false, err
-	}
-	if len(revStates) == 0 {
-		return false, fmt.Errorf("no RevStates found for ColRevision %d", d.ID)
-	}
-	latestRevState := revStates[len(revStates)-1]
-	return latestRevState.IsEditable()
+	return d.IsValidRevStateTransition("CollectionEditOngoing")
 }
 
 /*
-IsValidRevStateTransition checks if a proposed state transition is valid.
-
+```
 RevStates flow diagram:
 
-	------>  Ready   <-----------------------------------------------
-	|	     	|                                                   |
-	|           v                                                   |
-	|  	CollectionEditOngoing   ------->  CollectionEditCancelled >--
-	|	        v
-	|	CollectionEditCompleted
-	|	        |
-	|	        v
-	|	ProvisioningOngoing     ------->  ProvisioningFailed
-	|	        v
-	|   ProvisioningCompleted
-	|           |
-	|           v
-	-------------
+	A ColRev-N starts from the ColRev-N-1 "Ready", and then follows transitions which finally ends-up in either "Ready" or "ErrorZZZZ"
+	A ColRev-N+1 can only start from a "Ready"-ColRev-N but cannot start from a "ErrorZZZZ"-ColRev-N
+
+	_ColRev-N-1_ ___________ ColRev-N ______________________________________________
+
+	Ready ___                                                                  Ready
+	         \__                                                                 A
+	            v                                                                |
+	             CollectionEditOngoing   --->  CollectionEditCancelled  >------->+
+	                   v                                                         |
+	             CollectionEditCompleted                                         |
+	                   |                                                         |
+	                   v                                                         |
+	             ProvisioningOngoing     --->  ErrorProvisioningFailed           |
+	                   v                                                         A
+	             ProvisioningCompleted   >-------------------------------------->+
+
+```
 */
+// Define valid transitions based on the flow diagram
+// Include in this map keys all the existing states, even if they dont have any transition ("MyStateWithNoTransitions" = {})
+// as the map will also be used to detect valid state names
+var validStateTransitions = map[string][]string{
+	"Ready":                   {"CollectionEditOngoing"},
+	"CollectionEditOngoing":   {"CollectionEditCancelled", "CollectionEditCompleted"},
+	"CollectionEditCancelled": {"Ready"},
+	"CollectionEditCompleted": {"ProvisioningOngoing"},
+	"ProvisioningOngoing":     {"ErrorProvisioningFailed", "ProvisioningCompleted"},
+	"ProvisioningCompleted":   {"Ready"},
+}
+
 func (d *DbColRevision) IsValidRevStateTransition(newStateName string) (isValid bool, err error) {
 	var currStateName string
 	currStateName, err = d.GetDbRevStateLatestName()
@@ -181,14 +208,11 @@ func (d *DbColRevision) IsValidRevStateTransition(newStateName string) (isValid 
 		return false, err
 	}
 
-	// Define valid transitions based on the flow diagram
-	validTransitions := map[string][]string{
-		"CollectionEditOngoing":   {"CollectionEditCancelled", "CollectionEditCompleted"},
-		"CollectionEditCompleted": {"ProvisioningOngoing"},
-		"ProvisioningOngoing":     {"ProvisioningFailed", "ProvisioningCompleted"},
+	if currStateName == "" {
+		currStateName = "Ready"
 	}
 
-	if validNextStates, exists := validTransitions[currStateName]; exists {
+	if validNextStates, exists := validStateTransitions[currStateName]; exists {
 		for _, validNextState := range validNextStates {
 			if validNextState == newStateName {
 				return true, nil

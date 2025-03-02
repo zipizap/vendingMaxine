@@ -28,10 +28,6 @@ type DbRevState struct {
 
 // DbRevStateNew creates a new DbRevState
 func DbRevStateNew(dbColRevisionID uint, revStateName string, userWhoTriggered string, logs []byte) (*DbRevState, error) {
-	// Validate RevStateName
-	if !isValidRevStateName(revStateName) {
-		return nil, fmt.Errorf("invalid RevStateName: %s", revStateName)
-	}
 
 	// Validate state-transition with DbColRevision.IsValidRevStateTransition()
 	dbColRev, err := DbColRevisionLoad(dbColRevisionID)
@@ -140,17 +136,4 @@ func (d *DbRevState) GetLogs() ([]byte, error) {
 	}
 
 	return d.Logs, nil
-}
-
-// isValidRevStateName checks if the provided state name is valid
-func isValidRevStateName(name string) bool {
-	validNames := map[string]bool{
-		"CollectionEditOngoing":   true,
-		"CollectionEditCancelled": true,
-		"CollectionEditCompleted": true,
-		"ProvisioningOngoing":     true,
-		"ProvisioningFailed":      true,
-		"ProvisioningCompleted":   true,
-	}
-	return validNames[name]
 }

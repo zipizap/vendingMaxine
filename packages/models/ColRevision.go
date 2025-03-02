@@ -12,14 +12,14 @@ type ColRevision struct {
 }
 
 // ColRevisionNew creates a new ColRevision
-func ColRevisionNew(collectionID string) (*ColRevision, error) {
+func ColRevisionNew(collectionID string, initialRevStateName string, userWhoTriggered string) (*ColRevision, error) {
 	collectionIDuint, err := Collection_convert_ID_2_IDuint(collectionID)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &ColRevision{}
-	c.dbIfc, err = dbModels.DbColRevisionNew(collectionIDuint)
+	c.dbIfc, err = dbModels.DbColRevisionNew(collectionIDuint, initialRevStateName, userWhoTriggered)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +70,15 @@ func (c *ColRevision) GetCollectionID() (string, error) {
 	return Collection_convert_IDuint_2_ID(dbCollectionID), nil
 }
 
+// GetCollection returns the Collection this revision belongs to
+func (c *ColRevision) GetCollection() (*Collection, error) {
+	collectionID, err := c.GetCollectionID()
+	if err != nil {
+		return nil, err
+	}
+	return CollectionLoad(collectionID)
+}
+
 // GetRevStates returns all associated GetRevStates
 func (c *ColRevision) GetRevStates() ([]*RevState, error) {
 	dbRevStates, err := c.dbIfc.GetDbRevStates()
@@ -100,7 +109,7 @@ func (c *ColRevision) GetRevStateLatest() (*RevState, error) {
 	return revStates[len(revStates)-1], nil
 }
 
-// GetRevStateLatestName returns the name of the latest RevState
+// GetRevStateLatestName returns the name of the latest RevState, or "" if none exists
 func (c *ColRevision) GetRevStateLatestName() (string, error) {
 	return c.dbIfc.GetDbRevStateLatestName()
 }
@@ -120,16 +129,7 @@ func (c *ColRevision) GetModDate() (time.Time, error) {
 	return c.dbIfc.GetModDate()
 }
 
-// IsEditable returns whether the collection revision is editable
+// IsEditable returns whether the collection revision is the current state can start a collectionEdit
 func (c *ColRevision) IsEditable() (bool, error) {
 	return c.dbIfc.IsEditable()
-}
-
-// GetCollection returns the Collection this revision belongs to
-func (c *ColRevision) GetCollection() (*Collection, error) {
-	collectionID, err := c.GetCollectionID()
-	if err != nil {
-		return nil, err
-	}
-	return CollectionLoad(collectionID)
 }
