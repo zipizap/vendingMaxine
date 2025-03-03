@@ -85,6 +85,7 @@ func (c *Collection) Rename(newName string) error {
 }
 
 func (c *Collection) GetColRevisions() (colRevs []*ColRevision, err error) {
+	// get dbColRevs
 	dbColRevs, err := c.dbIfc.GetDbColRevisions()
 	if err != nil {
 		return nil, err
@@ -94,6 +95,7 @@ func (c *Collection) GetColRevisions() (colRevs []*ColRevision, err error) {
 		return colRevs, nil
 	}
 
+	// convert dbColRevs to colRevs
 	colRevs = make([]*ColRevision, 0, len(dbColRevs))
 	for _, dbColRev := range dbColRevs {
 		colRev := &ColRevision{dbIfc: dbColRev}
@@ -103,34 +105,38 @@ func (c *Collection) GetColRevisions() (colRevs []*ColRevision, err error) {
 	return colRevs, nil
 }
 
-// if ColRevisionLatest does not exist (happens when collection.ColRevisions is empty array)
-// then it returns nil, nil
+// GetColRevisionLatest returns the latest ColRevision
+// If ColRevisionLatest does not exist, it returns nil, nil
 func (c *Collection) GetColRevisionLatest() (*ColRevision, error) {
-	colRevs, err := c.GetColRevisions()
+	dbColRevLatest, err := c.dbIfc.GetDbColRevisionLatest()
 	if err != nil {
 		return nil, err
 	}
 
-	if len(colRevs) == 0 {
+	// if there was no ColRevision(s), then return nil
+	if dbColRevLatest == nil {
 		return nil, nil
 	}
 
-	return colRevs[len(colRevs)-1], nil
+	return &ColRevision{dbIfc: dbColRevLatest}, nil
 }
 
-// If ColRevisionLatest does not exist, then returns "", nil
+// GetRevStateLatestName returns the name of the latest-RevState from the latest-ColRev
+// If there are no ColRevs, then returns "", nil
 func (c *Collection) GetRevStateLatestName() (string, error) {
-	colRevLatest, err := c.GetColRevisionLatest()
-	if err != nil {
-		return "", err
-	}
-	if colRevLatest == nil {
-		return "", nil
-	}
-	return colRevLatest.GetRevStateLatestName()
+	return c.dbIfc.GetRevStateLatestName()
 }
 
-func (c *Collection) AppendColRevision(initialRevStateName string, userWhoTriggered string) error {
+// GetRevStateLatestUserWhoTriggered returns the user who triggered the latest RevState from the latest ColRev
+// If there are no ColRevs, then returns "", nil
+func (c *Collection) GetRevStateLatestUserWhoTriggered() (string, error) {
+	return c.dbIfc.GetRevStateLatestUserWhoTriggered()
+}
+
+// appendColRevision appends a new ColRevision to the collection.
+// It implicitly validates if it is possible to transit from whatever-current-state to the proposed initialRevStateName
+// It's private method, to be used by other public methods of this package, like Do_CollectionEdit()
+func (c *Collection) appendColRevision(initialRevStateName string, userWhoTriggered string) error {
 	return c.dbIfc.AppendDbColRevision(initialRevStateName, userWhoTriggered)
 }
 
@@ -165,4 +171,9 @@ func (c *Collection) IsEditable() (bool, error) {
 
 	// Get the latest revision state and check if it's editable
 	return colRevLatest.IsEditable()
+}
+
+// Do_CollectionEdit starts a collectionEdit
+func (c *Collection) DoCollectionEdit(userWhoTriggered string) error {
+	return c.appendColRevision("CollectionEditOngoing", userWhoTriggered)
 }

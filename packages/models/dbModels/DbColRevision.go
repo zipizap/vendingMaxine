@@ -15,9 +15,9 @@ type DbColRevisionIfc interface {
 	GetModDate() (time.Time, error)
 	GetDbRevStateLatest() (dbRevState *DbRevState, err error)
 	GetDbRevStateLatestName() (string, error)
+	GetRevStateLatestUserWhoTriggered() (string, error)
 	IsEditable() (bool, error)
 	AppendDbRevState(revStateName string, userWhoTriggered string, logs []byte) error
-	IsValidRevStateTransition(newStateName string) (isValid bool, err error)
 }
 
 // DbColRevision represents a collection revision in the database
@@ -28,10 +28,18 @@ type DbColRevision struct {
 }
 
 // DbColRevisionNew creates a new DbColRevision
-func DbColRevisionNew(dbCollectionID uint, initialRevStateName string, userWhoTriggered string) (dbColRev *DbColRevision, err error) {
-	dbColRev = &DbColRevision{}
+func DbColRevisionNew(dbCollectionID uint, prevColRev_revStateName string, initialRevStateName string, userWhoTriggered string) (dbColRev *DbColRevision, err error) {
+	// Validate if transition prevColRev_revStateName -> initialRevStateName is allowed
+	isValid, err := isValidRevStateTransition(prevColRev_revStateName, initialRevStateName)
+	if err != nil {
+		return nil, err
+	}
+	if !isValid {
+		return nil, fmt.Errorf("invalid state transition from <previous-ColRev>-RevState '%s' to <new-ColRev>-RevState '%s'", prevColRev_revStateName, initialRevStateName)
+	}
 
-	// Set dbColRev.DbCollectionID
+	dbColRev = &DbColRevision{}
+	// Set dbColRev.DbCollectionID, needed for DbRevStateNew()
 	dbColRev.DbCollectionID = dbCollectionID
 	// Save the DbColRevision to sets its ID required for DbRevStateNew()
 	err = dbColRev.Save(dbColRev)
@@ -39,8 +47,8 @@ func DbColRevisionNew(dbCollectionID uint, initialRevStateName string, userWhoTr
 		return nil, err
 	}
 
-	// Set dbColRev.DbRevStates
-	initialDbRevState, err := DbRevStateNew(dbColRev.ID, initialRevStateName, userWhoTriggered, nil)
+	// Set dbColRev.DbRevStates (only after validating the state transition!)
+	initialDbRevState, err := DbRevStateNew(dbColRev.ID, initialRevStateName, userWhoTriggered)
 	if err != nil {
 		return nil, err
 	}
@@ -135,10 +143,36 @@ func (d *DbColRevision) GetDbRevStateLatestName() (string, error) {
 	return latestDbRevState.GetRevStateName()
 }
 
+// GetRevStateLatestUserWhoTriggered returns the user who triggered the latest RevState, or empty string if none exists
+func (d *DbColRevision) GetRevStateLatestUserWhoTriggered() (string, error) {
+	latestDbRevState, err := d.GetDbRevStateLatest()
+	if err != nil {
+		return "", err
+	}
+	if latestDbRevState == nil {
+		return "", nil
+	}
+	return latestDbRevState.GetUserWhoTriggered()
+}
+
 // AppendDbRevState adds a new RevState to the collection revision.
-// Its a simple wrapper around DbRevStateNew(), enforcing the DbColRevisionID.
-func (d *DbColRevision) AppendDbRevState(revStateName string, userWhoTriggered string, logs []byte) error {
-	_, err := DbRevStateNew(d.ID, revStateName, userWhoTriggered, logs)
+func (d *DbColRevision) AppendDbRevState(newRevStateName string, userWhoTriggered string, logs []byte) error {
+	// Validate if transition from the currRevState --> newRevState is allowed
+	// currRevState is the latest RevState in this ColRev
+	currRevStateName, err := d.GetDbRevStateLatestName()
+	if err != nil {
+		return err
+	}
+	isValid, err := isValidRevStateTransition(currRevStateName, newRevStateName)
+	if err != nil {
+		return err
+	}
+	if !isValid {
+		return fmt.Errorf("invalid state transition inside this ColRev, from current-RevState '%s' to new-RevState '%s'", currRevStateName, newRevStateName)
+	}
+
+	// Create the new RevState (only after validating the state transition!)
+	_, err = DbRevStateNew(d.ID, newRevStateName, userWhoTriggered)
 	return err
 }
 
@@ -163,7 +197,11 @@ func (d *DbColRevision) GetModDate() (time.Time, error) {
 
 // IsEditable returns whether the collection revision in the current state can start a collectionEdit
 func (d *DbColRevision) IsEditable() (bool, error) {
-	return d.IsValidRevStateTransition("CollectionEditOngoing")
+	currRevStateName, err := d.GetDbRevStateLatestName()
+	if err != nil {
+		return false, err
+	}
+	return isValidRevStateTransition(currRevStateName, "CollectionEditOngoing")
 }
 
 /*
@@ -173,49 +211,57 @@ RevStates flow diagram:
 	A ColRev-N starts from the ColRev-N-1 "Ready", and then follows transitions which finally ends-up in either "Ready" or "ErrorZZZZ"
 	A ColRev-N+1 can only start from a "Ready"-ColRev-N but cannot start from a "ErrorZZZZ"-ColRev-N
 
-	_ColRev-N-1_ ___________ ColRev-N ______________________________________________
+	_________ColRev-N-1_____.___________ ColRev-N _________________________________________________.
+                            .                                                                      .
 
-	Ready ___                                                                  Ready
-	         \__                                                                 A
-	            v                                                                |
-	             CollectionEditOngoing   --->  CollectionEditCancelled  >------->+
-	                   v                                                         |
-	             CollectionEditCompleted                                         |
-	                   |                                                         |
-	                   v                                                         |
-	             ProvisioningOngoing     --->  ErrorProvisioningFailed           |
-	                   v                                                         A
-	             ProvisioningCompleted   >-------------------------------------->+
+CollectionEdit FLOW
+
+                Ready ___   .                                                               Ready  .
+            	         \__.__                                                               A    .
+	                        .  V                                                              |    .
+	                        . CollectionEditOngoing   --->  CollectionEditCancelled  >------->+    .
+            	            .       v                                                         |    .
+            	            . CollectionEditCompleted                                         |    .
+            	            .       |                                                         |    .
+            	            .       v                                                         |    .
+            	            . ProvisioningOngoing     --->  ErrorProvisioningFailed           |    .
+            	            .       v                                                         A    .
+	                        . ProvisioningCompleted   >-------------------------------------->+    .
+
+
+NewCollectionCreated FLOW
+
+	NewCollectionCreated >--.-------------------------------------------------------------> Ready  .
+
+
 
 ```
 */
-// Define valid transitions based on the flow diagram
+// Define valid transitions based on the flows diagram
 // Include in this map keys all the existing states, even if they dont have any transition ("MyStateWithNoTransitions" = {})
-// as the map will also be used to detect valid state names
-var validStateTransitions = map[string][]string{
-	"Ready":                   {"CollectionEditOngoing"},
-	"CollectionEditOngoing":   {"CollectionEditCancelled", "CollectionEditCompleted"},
-	"CollectionEditCancelled": {"Ready"},
-	"CollectionEditCompleted": {"ProvisioningOngoing"},
-	"ProvisioningOngoing":     {"ErrorProvisioningFailed", "ProvisioningCompleted"},
-	"ProvisioningCompleted":   {"Ready"},
+var validStateTransitionsFlows = []map[string][]string{
+	{
+		// CollectionEdit flow
+		"Ready":                   {"CollectionEditOngoing"},
+		"CollectionEditOngoing":   {"CollectionEditCancelled", "CollectionEditCompleted"},
+		"CollectionEditCancelled": {"Ready"},
+		"CollectionEditCompleted": {"ProvisioningOngoing"},
+		"ProvisioningOngoing":     {"ErrorProvisioningFailed", "ProvisioningCompleted"},
+		"ProvisioningCompleted":   {"Ready"},
+	},
+	{
+		// NewCollectionCreated flow
+		"NewCollectionCreated": {"Ready"},
+	},
 }
 
-func (d *DbColRevision) IsValidRevStateTransition(newStateName string) (isValid bool, err error) {
-	var currStateName string
-	currStateName, err = d.GetDbRevStateLatestName()
-	if err != nil {
-		return false, err
-	}
-
-	if currStateName == "" {
-		currStateName = "Ready"
-	}
-
-	if validNextStates, exists := validStateTransitions[currStateName]; exists {
-		for _, validNextState := range validNextStates {
-			if validNextState == newStateName {
-				return true, nil
+func isValidRevStateTransition(currStateName string, newStateName string) (isValid bool, err error) {
+	for _, flowMap := range validStateTransitionsFlows {
+		if validNextStates, exists := flowMap[currStateName]; exists {
+			for _, validNextState := range validNextStates {
+				if validNextState == newStateName {
+					return true, nil
+				}
 			}
 		}
 	}

@@ -3,7 +3,7 @@
 
 This was "T005) MyObj struct -> MyObj struct&Methods +  DbMyObjIfc + DbMyObj db-struct&db-methods"
 
-**Short summary**
+### Short summary
 
 ```
 *package*       *type*            *func*
@@ -14,6 +14,17 @@ dbModels        DbObjIfc         .GetZz()   .SetZz()    (ifc definition)
 
 [1] if Zz is a changeable field, then .GetZz()/.SetZz() funcs should internally start with .Reload()'ing from the db, to assure not using outdated values (ie, if another thread has changed the value in the db)
 ```
+
+MyModel is what the rest of the app needs to use
+DbMyModel is an internal thing of MyModel, to encapsulates the db complexities. 
+
+Func names for MyModel and DbMyModel:
+- GetZz() / SetZz() / AppendZz()
+- IsYYYY() bool
+- DoMyAction()
+
+
+
 
 ### MyObj
                 - focuses on thehigher logic of MyObj, that is expected for other packages to use

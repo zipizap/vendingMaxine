@@ -11,10 +11,8 @@ type DbRevStateIfc interface {
 	GetID() uint
 	GetDbColRevisionID() (uint, error)
 	GetRevStateName() (string, error)
-	GetCreatedAt() (time.Time, error)
-	IsEditable() (bool, error)
+	GetCreationDate() (time.Time, error)
 	GetUserWhoTriggered() (string, error)
-	GetLogs() ([]byte, error)
 }
 
 // DbRevState represents a revision state in the database
@@ -23,24 +21,11 @@ type DbRevState struct {
 	DbColRevisionID  uint
 	RevStateName     string // One of the defined state names
 	UserWhoTriggered string
-	Logs             []byte // For storing logs in ProvisioningFailed and ProvisioningCompleted states
 }
 
 // DbRevStateNew creates a new DbRevState
-func DbRevStateNew(dbColRevisionID uint, revStateName string, userWhoTriggered string, logs []byte) (*DbRevState, error) {
-
-	// Validate state-transition with DbColRevision.IsValidRevStateTransition()
-	dbColRev, err := DbColRevisionLoad(dbColRevisionID)
-	if err != nil {
-		return nil, err
-	}
-	isValid, err := dbColRev.IsValidRevStateTransition(revStateName)
-	if err != nil {
-		return nil, err
-	}
-	if !isValid {
-		return nil, fmt.Errorf("invalid state transition in ColRev %d to new state %s", dbColRevisionID, revStateName)
-	}
+// NOTE: this constructor does now know about previous state and does not validate state transitions - that should be done beforehand by the caller
+func DbRevStateNew(dbColRevisionID uint, revStateName string, userWhoTriggered string) (*DbRevState, error) {
 
 	dbRevState := &DbRevState{
 		DbColRevisionID:  dbColRevisionID,
@@ -48,12 +33,7 @@ func DbRevStateNew(dbColRevisionID uint, revStateName string, userWhoTriggered s
 		UserWhoTriggered: userWhoTriggered,
 	}
 
-	// Only set logs for states that need them
-	if revStateName == "ProvisioningFailed" || revStateName == "ProvisioningCompleted" {
-		dbRevState.Logs = logs
-	}
-
-	err = dbRevState.Save(dbRevState)
+	err := dbRevState.Save(dbRevState)
 	if err != nil {
 		return nil, err
 	}
@@ -84,56 +64,20 @@ func (d *DbRevState) GetID() uint {
 
 // GetDbColRevisionID returns the ID of the associated DbColRevision
 func (d *DbRevState) GetDbColRevisionID() (uint, error) {
-	if err := d.Reload(d); err != nil {
-		return 0, err
-	}
 	return d.DbColRevisionID, nil
 }
 
 // GetRevStateName returns the name of the RevState
 func (d *DbRevState) GetRevStateName() (string, error) {
-	if err := d.Reload(d); err != nil {
-		return "", err
-	}
 	return d.RevStateName, nil
 }
 
 // GetCreatedAt returns the creation date of the RevState
-func (d *DbRevState) GetCreatedAt() (time.Time, error) {
-	if err := d.Reload(d); err != nil {
-		return time.Time{}, err
-	}
+func (d *DbRevState) GetCreationDate() (time.Time, error) {
 	return d.CreatedAt, nil
-}
-
-// IsEditable returns whether the collection is editable in this state
-func (d *DbRevState) IsEditable() (bool, error) {
-	if err := d.Reload(d); err != nil {
-		return false, err
-	}
-
-	// Only CollectionEditOngoing state is editable
-	return d.RevStateName == "CollectionEditOngoing", nil
 }
 
 // GetUserWhoTriggered returns the user who triggered this state
 func (d *DbRevState) GetUserWhoTriggered() (string, error) {
-	if err := d.Reload(d); err != nil {
-		return "", err
-	}
 	return d.UserWhoTriggered, nil
-}
-
-// GetLogs returns the logs for ProvisioningFailed and ProvisioningCompleted states
-func (d *DbRevState) GetLogs() ([]byte, error) {
-	if err := d.Reload(d); err != nil {
-		return nil, err
-	}
-
-	// Logs are only available for ProvisioningFailed and ProvisioningCompleted states
-	if d.RevStateName != "ProvisioningFailed" && d.RevStateName != "ProvisioningCompleted" {
-		return nil, fmt.Errorf("logs are not available for state %s", d.RevStateName)
-	}
-
-	return d.Logs, nil
 }

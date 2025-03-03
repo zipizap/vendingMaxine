@@ -11,20 +11,7 @@ type RevState struct {
 	dbIfc dbModels.DbRevStateIfc
 }
 
-// RevStateNew creates a new RevState
-func RevStateNew(colRevisionID string, revStateName string, userWhoTriggered string, logs []byte) (*RevState, error) {
-	colRevisionIDuint, err := ColRevision_convert_ID_2_IDuint(colRevisionID)
-	if err != nil {
-		return nil, err
-	}
-
-	r := &RevState{}
-	r.dbIfc, err = dbModels.DbRevStateNew(colRevisionIDuint, revStateName, userWhoTriggered, logs)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
-}
+// RevStateNew constructor is not implemented on purpose - new RevStates are only created by dbColRev using dbModels.DbRevStateNew()
 
 // RevStateLoad loads a RevState by ID
 func RevStateLoad(revStateID string) (*RevState, error) {
@@ -70,31 +57,6 @@ func (r *RevState) GetColRevisionID() (string, error) {
 	return ColRevision_convert_IDuint_2_ID(dbColRevisionID), nil
 }
 
-// RevStateName returns the name of the RevState
-func (r *RevState) RevStateName() (string, error) {
-	return r.dbIfc.GetRevStateName()
-}
-
-// CreationDate returns the creation date of the RevState
-func (r *RevState) CreationDate() (time.Time, error) {
-	return r.dbIfc.GetCreatedAt()
-}
-
-// IsEditable returns whether the collection is editable in this state
-func (r *RevState) IsEditable() (bool, error) {
-	return r.dbIfc.IsEditable()
-}
-
-// UserWhoTriggered returns the user who triggered this state
-func (r *RevState) UserWhoTriggered() (string, error) {
-	return r.dbIfc.GetUserWhoTriggered()
-}
-
-// GetLogs returns the logs for ProvisioningFailed and ProvisioningCompleted states
-func (r *RevState) GetLogs() ([]byte, error) {
-	return r.dbIfc.GetLogs()
-}
-
 // GetColRevision returns the ColRevision this state belongs to
 func (r *RevState) GetColRevision() (*ColRevision, error) {
 	colRevisionID, err := r.GetColRevisionID()
@@ -102,4 +64,19 @@ func (r *RevState) GetColRevision() (*ColRevision, error) {
 		return nil, err
 	}
 	return ColRevisionLoad(colRevisionID)
+}
+
+// RevStateName returns the name of the RevState
+func (r *RevState) GetRevStateName() (string, error) {
+	return r.dbIfc.GetRevStateName()
+}
+
+// CreationDate returns the creation date of the RevState
+func (r *RevState) GetCreationDate() (time.Time, error) {
+	return r.dbIfc.GetCreationDate()
+}
+
+// UserWhoTriggered returns the user who triggered this state
+func (r *RevState) GetUserWhoTriggered() (string, error) {
+	return r.dbIfc.GetUserWhoTriggered()
 }

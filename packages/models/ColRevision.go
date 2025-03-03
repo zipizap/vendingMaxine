@@ -12,14 +12,14 @@ type ColRevision struct {
 }
 
 // ColRevisionNew creates a new ColRevision
-func ColRevisionNew(collectionID string, initialRevStateName string, userWhoTriggered string) (*ColRevision, error) {
+func ColRevisionNew(collectionID string, prevColRev_revStateName string, initialRevStateName string, userWhoTriggered string) (*ColRevision, error) {
 	collectionIDuint, err := Collection_convert_ID_2_IDuint(collectionID)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &ColRevision{}
-	c.dbIfc, err = dbModels.DbColRevisionNew(collectionIDuint, initialRevStateName, userWhoTriggered)
+	c.dbIfc, err = dbModels.DbColRevisionNew(collectionIDuint, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
 	if err != nil {
 		return nil, err
 	}
@@ -95,23 +95,28 @@ func (c *ColRevision) GetRevStates() ([]*RevState, error) {
 	return revStates, nil
 }
 
-// GetRevStateLatest returns the latest RevState
+// GetRevStateLatest returns the latest RevState or nil if none exists
 func (c *ColRevision) GetRevStateLatest() (*RevState, error) {
-	revStates, err := c.GetRevStates()
+	dbRevState, err := c.dbIfc.GetDbRevStateLatest()
 	if err != nil {
 		return nil, err
 	}
 
-	if len(revStates) == 0 {
-		return nil, fmt.Errorf("no RevStates found for ColRevision")
+	if dbRevState == nil {
+		return nil, nil
 	}
 
-	return revStates[len(revStates)-1], nil
+	return &RevState{dbIfc: dbRevState}, nil
 }
 
 // GetRevStateLatestName returns the name of the latest RevState, or "" if none exists
 func (c *ColRevision) GetRevStateLatestName() (string, error) {
 	return c.dbIfc.GetDbRevStateLatestName()
+}
+
+// GetRevStateLatestUserWhoTriggered returns the user who triggered the latest RevState, or "" if none exists
+func (c *ColRevision) GetRevStateLatestUserWhoTriggered() (string, error) {
+	return c.dbIfc.GetRevStateLatestUserWhoTriggered()
 }
 
 // AppendRevState adds a new RevState to the collection revision

@@ -14,9 +14,12 @@ type DbCollectionIfc interface {
 	SetName(string) error
 	GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error)
 	GetDbColRevisions() (dbColRevs []*DbColRevision, err error)
+	GetDbColRevisionLatest() (dbColRevLatest *DbColRevision, err error)
 	AppendDbColRevision(initialRevStateName string, userWhoTriggered string) error
 	GetCreationDate() (time.Time, error)
 	GetModDate() (time.Time, error)
+	GetRevStateLatestName() (string, error)
+	GetRevStateLatestUserWhoTriggered() (string, error)
 }
 
 type DbCollection struct {
@@ -33,7 +36,7 @@ func DbCollectionNew(
 	userWhoTriggered string,
 ) (*DbCollection, error) {
 	dbC := &DbCollection{}
-	// Name
+	// Col.Name
 	dbC.Name = name
 	// Saving sets the dbC.ID, needed for DbColRevisionNew()
 	err := dbC.Save(dbC)
@@ -41,9 +44,11 @@ func DbCollectionNew(
 		return nil, err
 	}
 
-	// DbColRevision
+	// A new DbCollection always starts with a new DbColRevision in state "Ready"
+	// Col.DbColRevisions[]
+	prevColRev_revStateName := "NewCollectionCreated"
 	initialRevStateName := "Ready"
-	dbColRev, err := DbColRevisionNew(dbC.ID, initialRevStateName, userWhoTriggered)
+	dbColRev, err := DbColRevisionNew(dbC.ID, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
 	if err != nil {
 		// Delete the DbCollection if creating the revision failed
 		if err := dbC.Delete(dbC); err != nil {
@@ -54,7 +59,7 @@ func DbCollectionNew(
 	}
 	dbC.DbColRevisions = append(dbC.DbColRevisions, dbColRev)
 
-	// DbAccessPolicy
+	// Col.DbAccessPolicy
 	dbC.DbAccessPolicy, err = DbAccessPolicyNew(dbC.ID, adminUsers, adminGroups, readerUsers, readerGroups)
 	if err != nil {
 		return nil, err
@@ -142,8 +147,30 @@ func (d *DbCollection) GetDbColRevisions() (dbColRevs []*DbColRevision, err erro
 	return d.DbColRevisions, nil
 }
 
+// GetDbColRevisionLatest returns the latest DbColRevision
+// If there are no DbColRevisions, it returns nil
+func (d *DbCollection) GetDbColRevisionLatest() (dbColRevLatest *DbColRevision, err error) {
+	// Get all the dbColRevs
+	dbColRevs, err := d.GetDbColRevisions()
+	if err != nil {
+		return nil, err
+	}
+
+	// If there are no dbColRevs()), return nil
+	if len(dbColRevs) == 0 {
+		return nil, nil
+	}
+
+	// Return the latest-dbColRev (last in array)
+	return dbColRevs[len(dbColRevs)-1], nil
+}
+
 func (d *DbCollection) AppendDbColRevision(initialRevStateName string, userWhoTriggered string) error {
-	_, err := DbColRevisionNew(d.ID, initialRevStateName, userWhoTriggered)
+	prevColRev_revStateName, err := d.GetRevStateLatestName()
+	if err != nil {
+		return err
+	}
+	_, err = DbColRevisionNew(d.ID, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
 	return err
 }
 
@@ -159,4 +186,46 @@ func (d *DbCollection) GetModDate() (time.Time, error) {
 		return time.Time{}, err
 	}
 	return d.UpdatedAt, nil
+}
+
+// GetRevStateLatestName returns the name of the latest-RevState from the latest-ColRev of this collection.
+// If there is no ColRev(s), it returns an empty string.
+func (d *DbCollection) GetRevStateLatestName() (string, error) {
+	// Get all ColRevs
+	dbColRevs, err := d.GetDbColRevisions()
+	if err != nil {
+		return "", err
+	}
+
+	// If there are no ColRevs, return empty string
+	if len(dbColRevs) == 0 {
+		return "", nil
+	}
+
+	// Get the latest ColRev (last in array)
+	latestDbColRev := dbColRevs[len(dbColRevs)-1]
+
+	// Return the name of its current state
+	return latestDbColRev.GetDbRevStateLatestName()
+}
+
+// GetRevStateLatestUserWhoTriggered returns the user who triggered the latest RevState from the latest ColRev.
+// If there is no ColRev(s), it returns an empty string.
+func (d *DbCollection) GetRevStateLatestUserWhoTriggered() (string, error) {
+	// Get all ColRevs
+	dbColRevs, err := d.GetDbColRevisions()
+	if err != nil {
+		return "", err
+	}
+
+	// If there are no ColRevs, return empty string
+	if len(dbColRevs) == 0 {
+		return "", nil
+	}
+
+	// Get the latest ColRev (last in array)
+	latestDbColRev := dbColRevs[len(dbColRevs)-1]
+
+	// Return the user who triggered its current state
+	return latestDbColRev.GetRevStateLatestUserWhoTriggered()
 }
