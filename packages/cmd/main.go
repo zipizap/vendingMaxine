@@ -68,6 +68,10 @@ func dbInit() {
 	// Migrate models
 	err := gormCrud.MigrateModels(
 		&dbModels.DbCollection{},
+		&dbModels.DbCollection{},
+		&dbModels.DbAccessPolicy{},
+		&dbModels.DbColRevision{},
+		&dbModels.DbRevState{},
 		// add here more models
 	)
 	if err != nil {
