@@ -8,6 +8,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -29,7 +30,9 @@ func InitializeDB(sqliteFilename string) error {
 		return nil
 	}
 	var err error
-	Db, err = gorm.Open(sqlite.Open(sqliteFilename), &gorm.Config{})
+	Db, err = gorm.Open(sqlite.Open(sqliteFilename), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		return err
 	}

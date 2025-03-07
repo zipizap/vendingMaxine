@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"log"
 	"vendingMaxine/packages/gormCrud"
+	"vendingMaxine/packages/logger"
 	"vendingMaxine/packages/models/dbModels"
 	"vendingMaxine/packages/webserver"
 
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -16,17 +17,24 @@ import (
 /* Ex: config.yaml
 
 Branding:
-  Name: "My App"
-  LogoPngFile: "myAppLogo.png"
+	Name: "My App"                    # String: Application display name
+	Description: "My App Description" # String: Application description
+	LogoPngFile: "myAppLogo.png"      # String: Path to logo PNG file
 
 DexConfig:
-  ClientId: example-app
-  ClientSecret: xxxxx
-  ClientRedirectURL: http://zzzzz
-  DexIssuer: http://yyyyyy
+	ClientId: example-app             # String: OAuth client ID
+	ClientSecret: xxxxx               # String: OAuth client secret
+	ClientRedirectURL: http://zzzzz   # String: Full URL for OAuth callbacks
+	DexIssuer: http://yyyyyy          # String: Dex issuer URL
 
 Database:
-  SqliteFilename: "sqlite.db"
+	SqliteFilename: "sqlite.db"       # String: Path to SQLite database file
+
+Logging:
+	Level: "debug"                    # String: "debug", "info", "warn", "error", "fatal", "panic"
+	Type: "text-with-colors"          # String: "json", "text", or "text-with-colors"
+	TimeFormat: "2006-01-02T15:04:05.999Z07:00"  # String: Go time format string
+	Output: "both:/var/log/app.log"   # String: "console", "file:/path/to/file.log", or "both:/path/to/file.log"
 
 */
 // To improve this config, change this struct and nothing else
@@ -45,6 +53,7 @@ type appConfigType struct {
 	Database struct {
 		SqliteFilename string `mapstructure:"SqliteFilename"`
 	} `mapstructure:"Database"`
+	Logging logger.Config `mapstructure:"Logging"`
 }
 
 var appConfig *appConfigType
@@ -52,34 +61,46 @@ var appConfig *appConfigType
 func appconfigInit(flagConfigFilename *string) {
 	cfg, err := loadAppConfig(*flagConfigFilename)
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		log.Fatal().Err(err).Msg("failed to load config")
 	}
 	appConfig = cfg
-	// spew.Dump(cfg)
+}
+
+func loggerInit() {
+	// Initialize logger with config
+	logger.Init(&appConfig.Logging)
+}
+
+func showConfigInLogger() {
+	log.Info().Interface("config", appConfig).Msg("Configuration loaded")
 }
 
 func dbInit() {
 	// Initialize the database with a specific filename
 	sqliteFilename := appConfig.Database.SqliteFilename
+	log.Info().Str("filename", sqliteFilename).Msg("Initializing database")
+
 	if err := gormCrud.InitializeDB(sqliteFilename); err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("failed to initialize database")
 	}
 
 	// Migrate models
+	log.Debug().Msg("Migrating database models")
 	err := gormCrud.MigrateModels(
-		&dbModels.DbCollection{},
-		&dbModels.DbCollection{},
 		&dbModels.DbAccessPolicy{},
-		&dbModels.DbColRevision{},
 		&dbModels.DbRevState{},
+		&dbModels.DbColRevision{},
+		&dbModels.DbCollection{},
 		// add here more models
 	)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("failed to migrate database models")
 	}
+	log.Info().Msg("Database migration completed")
 }
 
 func webserverStart() {
+	log.Info().Msg("Starting web server")
 	webserverConfigOauth := &webserver.ConfigOauthClientDex{
 		ClientID:          appConfig.DexConfig.ClientId,
 		ClientSecret:      appConfig.DexConfig.ClientSecret,
@@ -97,6 +118,8 @@ func Execute() {
 		Short: "VendingMaxine application",
 		Run: func(cmd *cobra.Command, args []string) {
 			appconfigInit(&flagConfigFilename)
+			loggerInit()
+			showConfigInLogger()
 			dbInit()
 			webserverStart()
 		},
@@ -106,6 +129,6 @@ func Execute() {
 	rootCmd.PersistentFlags().StringVar(&flagConfigFilename, "config", "config.yaml", "config file path")
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Error executing command: %v", err)
+		log.Fatal().Err(err).Msg("Error executing command")
 	}
 }

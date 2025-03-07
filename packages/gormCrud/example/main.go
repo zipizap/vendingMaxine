@@ -24,7 +24,7 @@ type User struct {
 	ChessClub   *ChessClub
 	ChessClubID uint
 	// manyUser-to-manyAutoBuses (internally uses a join table user_autobuses)
-	AutoBuses []*AutoBus `gorm:"many2many:user_autobuses;"` // plural
+	AutoBuses []*AutoBus `gorm:"many2many:users_autobuses;"` // plural
 }
 
 type Profile struct {
@@ -54,7 +54,7 @@ type AutoBus struct {
 	gormCrud.GormCrud[AutoBus]
 	BusName string
 	// manyUser-to-manyAutoBuses (internally uses a join table user_autobuses)
-	Users []*User `gorm:"many2many:user_autobuses;"` // plural
+	Users []*User `gorm:"many2many:users_autobuses;"` // plural
 }
 
 func main() {

@@ -25,8 +25,8 @@ type DbCollectionIfc interface {
 type DbCollection struct {
 	gormCrud.GormCrud[DbCollection]
 	Name           string
-	DbAccessPolicy *DbAccessPolicy  // 1DbAccessPolicy-to-1DbCollection
-	DbColRevisions []*DbColRevision // 1DbCollection-to-manyDbColRevisions, loaded on demand by GetDbColRevisions()
+	DbAccessPolicy *DbAccessPolicy  //this might be unnecessary... `gorm:"foreignKey:DbCollectionID;references:ID"` // 1DbAccessPolicy-to-1DbCollection
+	DbColRevisions []*DbColRevision //this might be unnecessary... `gorm:"foreignKey:DbCollectionID;references:ID"` // 1DbCollection-to-manyDbColRevisions, loaded on demand by GetDbColRevisions()
 }
 
 func DbCollectionNew(

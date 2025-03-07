@@ -1,14 +1,23 @@
+# Config file must exist and have all the fields set - missing fields will generate an error.
+# Env-vars with prefix CONFIG_ will override config.yaml values (ex: export CONFIG_DEXCONFIG_SECRET="overriden from env-var")
+# Sensitive values can be set in this file with a "fake" value, and then overriden with env-vars at runtime.
+
 Branding:
-  Name: "My App"
-  Description: "My App is a great app"
-  LogoPngFile: "myAppLogo.png"
-  
+  Name: "My App"                                          # String: Application display name
+  Description: "My App Description"                       # String: Application description
+  LogoPngFile: "myAppLogo.png"                            # String: Path to logo PNG file
+
 DexConfig:
-  ClientId: example-app
-  ClientSecret: xxxxx
-  ClientRedirectURL: http://zzzzz
-  DexIssuer: http://yyyyyy
+  ClientId: "example-app"                                 # String: OAuth client ID
+  ClientSecret: "fake-value-will-be-set-by-env-var-CONFIG_DEXCONFIG_SECRET"               # String: OAuth client secret
+  ClientRedirectURL: "http://domain-of-myapp/callback"    # String: Full URL of this app, to receive OAuth callbacks from DEX (http)
+  DexIssuer: "http://dex-url"                             # String: Dex issuer URL (http) 
 
 Database:
-  SqliteFilename: "sqlite.db"
+  SqliteFilename: "sqlite.db"                             # String: Path to SQLite database file
 
+Logging:
+  Level: "debug"                                          # String: "debug", "info", "warn", "error", "fatal", "panic"
+  Type: "text-with-colors"                                # String: "json", "text", or "text-with-colors"
+  TimeFormat: "2006-01-02T15:04:05.999Z07:00"             # String: Go time format string
+  Output: "both:./log.log"                         # String: "console", "file:/path/to/file.log", or "both:/path/to/file.log"

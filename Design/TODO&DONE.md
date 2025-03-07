@@ -20,8 +20,10 @@
 ## TODO
 
 
+- Tzzz) gorm does not support fields of type []string (error "unsupported data type: &[]")
+  - Create new 
 
-
+- Tzzz) start adding webpages
 
 - Tzzz) add description field to the following types.
   It should initially be set by constructor, with getter/setter methods GetDescription() SetDescription()
@@ -51,7 +53,8 @@
 
 
 ## DONE
-T007) - models and dbModels foundation
+
++ T007) - models and dbModels foundation
   + ColRev and up:
     + check ColRev
     + integrate ColRev into Collection
@@ -100,8 +103,6 @@ T007) - models and dbModels foundation
     + func (o *Collection) GetRevStateLatestUserWhoTriggered() (string, error)
       + should read from `(d *DbCollection) GetRevStateLatestUserWhoTriggered()`
 
-
-
   + logic: Col creates ColRev which creates RevState. What are RevState args, so that ColRev and Col set them
   + ColRev: implement user-who-triggered to pass it down to RevState (or improve this user-identification somehow and then align to it RevState and ColRev)
 
@@ -117,17 +118,19 @@ T007) - models and dbModels foundation
     + ProvisioningCompleted should transition to "Ready"
 
 
-- T002) Add a CollectionID field, and use it internally instead of CollectionName. So different users can have collections of same name but different id
++ T002) Add a CollectionID field, and use it internally instead of CollectionName. So different users can have collections of same name but different id
 
-- T005) helper-prefixes on ObjectsIDs, like:
++ T005) helper-prefixes on ObjectsIDs, like:
           DbCollection.ID    as  <UUID>
           CollectionID()     as  "ColID-<DbCollection.ID>"
         Applied to all suitable objects
         This shuold provide a clear and consistent way to identify objects in the code/debug/logs, and avoid confusion between objects of different types.
 
-- T004) RevStates: from map to []RevState, to allow for easy ordering of states and containement of other props specific to each state (as inputs, outputs, etc)
-- T003) RevStates: no longer array, use map insted to allow free containment other props specific to each state (as inputs, outputs, etc)
-- T001) rename "CollectionTemplate" with "CatalogBlueprint"
++ T004) RevStates: from map to []RevState, to allow for easy ordering of states and containement of other props specific to each state (as inputs, outputs, etc)
+
++ T003) RevStates: no longer array, use map insted to allow free containment other props specific to each state (as inputs, outputs, etc)
+
++ T001) rename "CollectionTemplate" with "CatalogBlueprint"
   - diagram
   - readme
 
