@@ -23,6 +23,9 @@
 - Tzzz) gorm does not support fields of type []string (error "unsupported data type: &[]")
   - Create new 
 
+- Tzzz) gorm::main.go: ReLoading from db the AutoBus records (Alice should only be in Bus2)
+  Not working, see how to properly delete an element from a slice in gorm 
+
 - Tzzz) start adding webpages
 
 - Tzzz) add description field to the following types.

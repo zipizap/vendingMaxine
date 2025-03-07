@@ -23,7 +23,7 @@ type User struct {
 	// manyUser-to-1ChessClub - 2 fields: ChessClub and ChessClubID (mandatory!)
 	ChessClub   *ChessClub
 	ChessClubID uint
-	// manyUser-to-manyAutoBuses (internally uses a join table user_autobuses)
+	// manyUser-to-manyAutoBuses (internally uses a join table users_autobuses)
 	AutoBuses []*AutoBus `gorm:"many2many:users_autobuses;"` // plural
 }
 
@@ -53,7 +53,7 @@ type ChessClub struct {
 type AutoBus struct {
 	gormCrud.GormCrud[AutoBus]
 	BusName string
-	// manyUser-to-manyAutoBuses (internally uses a join table user_autobuses)
+	// manyUser-to-manyAutoBuses (internally uses a join table users_autobuses)
 	Users []*User `gorm:"many2many:users_autobuses;"` // plural
 }
 
@@ -157,6 +157,41 @@ func main() {
 			panic(err)
 		}
 		printJSON(results)
+	}
+
+	// manyUser-to-manyAutoBuses
+	//
+	// User.AutoBuses and AutoBus.Users have a manyUser-to-manyAutoBuses (internally uses a join table users_autobuses)
+	// To add an AutoBus into User.AutoBuses[], just append it and save: u.AutoBuses = append(u.AutoBuses, ab1)
+	// To remove an AutoBus from User.AutoBuses[], due to the many-to-many relation, we need to do it in a special way,
+	// using GORM's Association() method: gormCrud.Db.Model(aUser).Association("AutoBuses").Delete(aAutoBus)
+	//
+
+	// Remove ab2 from user u's AutoBuses
+	fmt.Printf("\n\nRemoving Bus1 from Alice's auto buses (Alice should end with only Bus2)\n")
+	{
+
+		// We are removing ab1 from u.AutoBuses[] in a way that also updates the join table users_autobuses
+		if err := gormCrud.Db.Model(u).Association("AutoBuses").Delete(ab1); err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("\n\nLoading from db the User records (Alice should only be in Bus2)\n")
+		{ // Reload the user to get the updated AutoBuses
+			if err := u.Reload(u); err != nil {
+				panic(err)
+			}
+			printJSON(u)
+		}
+
+		fmt.Printf("\n\nReLoading from db the AutoBus records (Alice should only be in Bus2)\n")
+		{
+			results, err := (&AutoBus{}).LoadWhere("bus_name != ''", "")
+			if err != nil {
+				panic(err)
+			}
+			printJSON(results)
+		}
 	}
 }
 

@@ -15,29 +15,7 @@ The GormCrud[T] will:
   - Embed gorm.Model fields: ID, CreatedAt, UpdatedAt, DeletedAt
 
 Example:
-
-	type TypeA struct {
-		gormCrud.GormCrud[TypeA]
-		Name string
-	}
-
-	func main() {
-		 // Initialize the database with a specific filename
-		if err := gormCrud.InitializeDB("mydb.db"); err != nil {
-			panic(err)
-		}
-
-		// Migrate models
-		if err := gormCrud.MigrateModels(&TypeA{}); err != nil {
-			panic(err)
-		}
-
-		instance := &TypeA{Name: "test"}
-		err := instance.Save(instance) // Create/Update
-		results, err := instance.LoadWhere("name = ?", "test") // Read
-		err = instance.Reload(instance)
-		err = instance.Delete(instance)
-	}
+  - see example/main.go
 
 Methods:
 
