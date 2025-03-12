@@ -193,6 +193,28 @@ func main() {
 			printJSON(results)
 		}
 	}
+
+	// Load from database user2
+	fmt.Printf("\n\nLoading from db the User2 records\n")
+	{
+		results, err := u2.LoadWhere("name = ?", "Bob")
+		if err != nil {
+			panic(err)
+		}
+		printJSON(results)
+	}
+
+	// load from user2.ID
+	fmt.Printf("\n\nLoading from db the User2 record by ID\n")
+	{
+		u2Reloaded := &User{}
+		u2Reloaded.ID = u2.ID
+		err := u2Reloaded.Reload(u2Reloaded)
+		if err != nil {
+			panic(err)
+		}
+		printJSON(u2Reloaded)
+	}
 }
 
 func printJSON(data interface{}) {

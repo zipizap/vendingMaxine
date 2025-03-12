@@ -21,7 +21,32 @@
 
 
 - Tzzz) gorm does not support fields of type []string (error "unsupported data type: &[]")
-  - Create new 
+  - undo DbAdminUser 
+    - del DbAdminUser
+    - clean DbAccessPolicy from references
+  - implement DbAccessPolicy in a special way:
+    - DbAccessPolicy is just a facade with methods that implement the ifc and return AdminUsers, AdminGroups, ReaderUsers, ReaderGroups []string
+    - Create a new underlying model, DbAccessPolicyMappings, which will be a single table containing a list of rules for all the collections and all roles.
+      DbAccessPolicy will query the DbAccessPolicyMappings and return the []string
+    - DbAccessPolicyMappings will have the following fields:
+      - CollectionID
+      - Role
+      - User
+      - Group
+    - review DbAccessPolicy methods: use DbAccessPolicyMappings to get []string and should work
+
+
+  old:
+  - in same fashion as was done for DbAccessPolicy.AdminUsers []*DbAdminUser :
+    - new type DbAdminUser created in its own file
+    -  DbAccessPolicy type and methods changed accordingly
+    now the same should be done for 
+    - DbAccessPolicy.AdminGroups
+    - DbAccessPolicy.ReaderUsers
+    - DbAccessPolicy.ReaderGroups
+
+- Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations
+  
 
 - Tzzz) gorm::main.go: ReLoading from db the AutoBus records (Alice should only be in Bus2)
   Not working, see how to properly delete an element from a slice in gorm 

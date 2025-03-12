@@ -29,11 +29,14 @@ type DbAccessPolicyParams struct {
 
 type DbAccessPolicy struct {
 	gormCrud.GormCrud[DbAccessPolicy]
-	DbCollectionID uint           `gorm:"unique"`                                 // 1DbAccessPolicy-to-1DbCollection
-	AdminUsers     []*DbAdminUser `gorm:"many2many:admin_users__db_admin_users;"` // []string
-	AdminGroups    bool           // []*DbAdminGroup        `gorm:"many2many:admin_groups__db_admin_groups;"`   // []string
-	ReaderUsers    bool           // []*DbReaderUser        `gorm:"many2many:reader_users__db_reader_users;"`   // []string
-	ReaderGroups   bool           // []*DbAccessReaderGroup `gorm:"many2many:reader_groups__db_reader_groups;"` // []string
+	DbCollectionID uint   // manyDbAccessPolicy-to-1DbCollection
+	Role           string // admin, reader
+	User           string //
+
+	AdminUsers   []*DbAdminUser `gorm:"many2many:admin_users__db_admin_users;"` // []string
+	AdminGroups  bool           // []*DbAdminGroup        `gorm:"many2many:admin_groups__db_admin_groups;"`   // []string
+	ReaderUsers  bool           // []*DbReaderUser        `gorm:"many2many:reader_users__db_reader_users;"`   // []string
+	ReaderGroups bool           // []*DbAccessReaderGroup `gorm:"many2many:reader_groups__db_reader_groups;"` // []string
 }
 
 func DbAccessPolicyNew(dbCollectionID uint, adminUsers, adminGroups, readerUsers, readerGroups []string) (*DbAccessPolicy, error) {
