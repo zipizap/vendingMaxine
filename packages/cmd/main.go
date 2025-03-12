@@ -87,7 +87,7 @@ func dbInit() {
 	// Migrate models
 	log.Debug().Msg("Migrating database models")
 	err := gormCrud.MigrateModels(
-		&dbModels.DbAdminUser{},
+		&dbModels.DbAccessPolicyMapping{},
 		&dbModels.DbAccessPolicy{},
 		&dbModels.DbRevState{},
 		&dbModels.DbColRevision{},

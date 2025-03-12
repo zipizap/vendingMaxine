@@ -19,9 +19,12 @@ MyModel is what the rest of the app needs to use
 DbMyModel is an internal thing of MyModel, to encapsulates the db complexities. 
 
 Func names for MyModel and DbMyModel:
-- GetZz() / SetZz() / AppendZz()
-- IsYYYY() bool
-- DoMyAction()
+- [Db]MyModelNew()
+- [Db]MyModelLoad()
+- .GetZz() / .SetZz() / AppendZz()
+- .IsYYYY() bool
+- .DoMyAction()
+
 
 
 

@@ -20,30 +20,44 @@
 ## TODO
 
 
-- Tzzz) gorm does not support fields of type []string (error "unsupported data type: &[]")
-  - undo DbAdminUser 
-    - del DbAdminUser
-    - clean DbAccessPolicy from references
-  - implement DbAccessPolicy in a special way:
-    - DbAccessPolicy is just a facade with methods that implement the ifc and return AdminUsers, AdminGroups, ReaderUsers, ReaderGroups []string
-    - Create a new underlying model, DbAccessPolicyMappings, which will be a single table containing a list of rules for all the collections and all roles.
-      DbAccessPolicy will query the DbAccessPolicyMappings and return the []string
-    - DbAccessPolicyMappings will have the following fields:
-      - CollectionID
-      - Role
-      - User
-      - Group
-    - review DbAccessPolicy methods: use DbAccessPolicyMappings to get []string and should work
++ Tzzz) gorm does not support fields of type []string (error "unsupported data type: &[]")
+  + undo DbAdminUser 
+    + del DbAdminUser
 
+  + re-implement AccessPolicy related things:
+    ```
+    DbCollection.DbAccessPolicy  1DbCollection-to-1DbAccessPolicy
 
-  old:
-  - in same fashion as was done for DbAccessPolicy.AdminUsers []*DbAdminUser :
-    - new type DbAdminUser created in its own file
-    -  DbAccessPolicy type and methods changed accordingly
-    now the same should be done for 
-    - DbAccessPolicy.AdminGroups
-    - DbAccessPolicy.ReaderUsers
-    - DbAccessPolicy.ReaderGroups
+    DbAccessPolicy.DbAccessPolicyMappings []*DbAccessPolicyMapping    1DbAccessPolicy-to-manyDbAccessPolicyMapping
+
+    DbAccessPolicyMapping
+      DbCollectionID
+      Role
+      User
+      Group
+
+    ```
+    + Logic:   
+      . AccessPolicy - just a facade with methods that return AdminUsers, AdminGroups, ReaderUsers, ReaderGroups []string, and other usefull methods
+      . DbAccessPolicyMapping - a new underlying model, which will be a single table containing rules for all collections, for all roles and all users/groups 
+      . AccessPolicy will call DbAccessPolicyMapping methods, which in turn will query db to return the []string and other desired data.
+      . DbAccessPolicyMapping will have the following fields:
+        . CollectionID
+        . Role
+        . User
+        . Group
+    + review AccessPolicy methods: use DbAccessPolicyMapping to get []string and should work
+
+  - TzzZ) add DbAccessPolicyParams so it is used in all method-params that capture it (collection methods or whatever). It will be better to have a type there instead of loosen []strings
+    ```
+      type DbAccessPolicyParams struct {
+        AdminUsers   []string
+        AdminGroups  []string
+        ReaderUsers  []string
+        ReaderGroups []string
+      }
+    ``` 
+
 
 - Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations
   

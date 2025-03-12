@@ -73,7 +73,7 @@ func main() {
 	}
 
 	// Migrate models
-	models := []interface{}{&User{}, &Profile{}, &Address{}}
+	models := []interface{}{&User{}, &Profile{}, &Address{}, &ChessClub{}, &AutoBus{}}
 	if err := gormCrud.MigrateModels(models...); err != nil {
 		panic(err)
 	}
