@@ -19,12 +19,16 @@
 
 ## TODO
 
+- Tzzz) Introduce GlobalAdminGroup:
+  - It's value should be read from the config.yaml and not saved into db.  
+  - At runtime, the related functions should use it to validate access.  
+  - This allows the GlobalAdminGroup to be changed in a simple way, by changing config.yaml and restarting the app.  
+ 
 - Tzzz) start adding webpages
-
-- Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations  
 
 - Tzzz) When RevState is "ErrorProvisioningFailed". there is no next-state possible. How to solve this?
 
+- Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations  
 
 - T999) clean existing TOREVIEW, TBD, TODO, WIP
 

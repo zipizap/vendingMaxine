@@ -11,8 +11,8 @@ type Collection struct {
 	dbIfc dbModels.DbCollectionIfc // unexported field, only used by Collection package and not other packages
 }
 
-// Constructor creates dbCollectionIfc and public-methods use dbCollectionIfc to access r/w data
-
+// CollectionNew creates a new Collection
+// It also creates a new AccessPolicy for the Collection from accessPolicyParams. Remember to include the creator-user in the AdminUsers beforehand!
 func CollectionNew(
 	collectionName string,
 	description string, // New parameter
