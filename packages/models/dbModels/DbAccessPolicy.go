@@ -3,6 +3,7 @@ package dbModels
 import (
 	"fmt"
 	"vendingMaxine/packages/gormCrud"
+	"vendingMaxine/packages/sharedTypes"
 )
 
 type DbAccessPolicyIfc interface {
@@ -20,20 +21,13 @@ type DbAccessPolicyIfc interface {
 	GetDbCollectionID() (uint, error)
 }
 
-type DbAccessPolicyParams struct {
-	AdminUsers   []string
-	AdminGroups  []string
-	ReaderUsers  []string
-	ReaderGroups []string
-}
-
 type DbAccessPolicy struct {
 	gormCrud.GormCrud[DbAccessPolicy]
 	DbCollectionID         uint                     `gorm:"unique"` // 1DbAccessPolicy-to-1DbCollection
 	DbAccessPolicyMappings []*DbAccessPolicyMapping // 1DbAccessPolicy-to-manyDbAccessPolicyMappings
 }
 
-func DbAccessPolicyNew(dbCollectionID uint, adminUsers, adminGroups, readerUsers, readerGroups []string) (*DbAccessPolicy, error) {
+func DbAccessPolicyNew(dbCollectionID uint, accessPolicyParams sharedTypes.AccessPolicyParams) (*DbAccessPolicy, error) {
 	// Create a new DbAccessPolicy
 	dbAP := &DbAccessPolicy{
 		DbCollectionID: dbCollectionID,
@@ -46,7 +40,7 @@ func DbAccessPolicyNew(dbCollectionID uint, adminUsers, adminGroups, readerUsers
 	}
 
 	// Create mappings for admin users
-	for _, user := range adminUsers {
+	for _, user := range accessPolicyParams.AdminUsers {
 		_, err := DbAccessPolicyMappingNew(dbAP.ID, dbCollectionID, "admin", user, "")
 		if err != nil {
 			return nil, err
@@ -54,7 +48,7 @@ func DbAccessPolicyNew(dbCollectionID uint, adminUsers, adminGroups, readerUsers
 	}
 
 	// Create mappings for admin groups
-	for _, group := range adminGroups {
+	for _, group := range accessPolicyParams.AdminGroups {
 		_, err := DbAccessPolicyMappingNew(dbAP.ID, dbCollectionID, "admin", "", group)
 		if err != nil {
 			return nil, err
@@ -62,7 +56,7 @@ func DbAccessPolicyNew(dbCollectionID uint, adminUsers, adminGroups, readerUsers
 	}
 
 	// Create mappings for reader users
-	for _, user := range readerUsers {
+	for _, user := range accessPolicyParams.ReaderUsers {
 		_, err := DbAccessPolicyMappingNew(dbAP.ID, dbCollectionID, "reader", user, "")
 		if err != nil {
 			return nil, err
@@ -70,7 +64,7 @@ func DbAccessPolicyNew(dbCollectionID uint, adminUsers, adminGroups, readerUsers
 	}
 
 	// Create mappings for reader groups
-	for _, group := range readerGroups {
+	for _, group := range accessPolicyParams.ReaderGroups {
 		_, err := DbAccessPolicyMappingNew(dbAP.ID, dbCollectionID, "reader", "", group)
 		if err != nil {
 			return nil, err

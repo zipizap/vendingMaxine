@@ -12,14 +12,14 @@ type ColRevision struct {
 }
 
 // ColRevisionNew creates a new ColRevision
-func ColRevisionNew(collectionID string, prevColRev_revStateName string, initialRevStateName string, userWhoTriggered string) (*ColRevision, error) {
+func ColRevisionNew(collectionID string, description string, prevColRev_revStateName string, initialRevStateName string, userWhoTriggered string) (*ColRevision, error) {
 	collectionIDuint, err := Collection_convert_ID_2_IDuint(collectionID)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &ColRevision{}
-	c.dbIfc, err = dbModels.DbColRevisionNew(collectionIDuint, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
+	c.dbIfc, err = dbModels.DbColRevisionNew(collectionIDuint, description, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
 	if err != nil {
 		return nil, err
 	}
@@ -137,4 +137,14 @@ func (c *ColRevision) GetModDate() (time.Time, error) {
 // IsEditable returns whether the collection revision is the current state can start a collectionEdit
 func (c *ColRevision) IsEditable() (bool, error) {
 	return c.dbIfc.IsEditable()
+}
+
+// GetDescription returns the description of the ColRevision
+func (c *ColRevision) GetDescription() (string, error) {
+	return c.dbIfc.GetDescription()
+}
+
+// SetDescription sets the description of the ColRevision
+func (c *ColRevision) SetDescription(description string) error {
+	return c.dbIfc.SetDescription(description)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"vendingMaxine/packages/gormCrud"
+	"vendingMaxine/packages/sharedTypes"
 )
 
 // DbCollection follows gorm conventions, takes care of db-struct and db-methods
@@ -12,10 +13,12 @@ type DbCollectionIfc interface {
 	GetID() uint
 	GetName() (string, error)
 	SetName(string) error
+	GetDescription() (string, error)
+	SetDescription(string) error
 	GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error)
 	GetDbColRevisions() (dbColRevs []*DbColRevision, err error)
 	GetDbColRevisionLatest() (dbColRevLatest *DbColRevision, err error)
-	AppendDbColRevision(initialRevStateName string, userWhoTriggered string) error
+	AppendDbColRevision(colRevDescription string, initialRevStateName string, userWhoTriggered string) error
 	GetCreationDate() (time.Time, error)
 	GetModDate() (time.Time, error)
 	GetRevStateLatestName() (string, error)
@@ -25,19 +28,22 @@ type DbCollectionIfc interface {
 type DbCollection struct {
 	gormCrud.GormCrud[DbCollection]
 	Name           string
+	Description    string
 	DbAccessPolicy *DbAccessPolicy  // 1DbAccessPolicy-to-1DbCollection
 	DbColRevisions []*DbColRevision // 1DbCollection-to-manyDbColRevisions, loaded on demand by GetDbColRevisions()
 }
 
 func DbCollectionNew(
 	name string,
-	adminUsers []string, adminGroups []string,
-	readerUsers []string, readerGroups []string,
+	description string,
+	accessPolicyParams sharedTypes.AccessPolicyParams,
 	userWhoTriggered string,
 ) (*DbCollection, error) {
 	dbC := &DbCollection{}
 	// Col.Name
 	dbC.Name = name
+	// Col.Description
+	dbC.Description = description
 	// Saving sets the dbC.ID, needed for DbColRevisionNew()
 	err := dbC.Save(dbC)
 	if err != nil {
@@ -46,9 +52,10 @@ func DbCollectionNew(
 
 	// A new DbCollection always starts with a new DbColRevision in state "Ready"
 	// Col.DbColRevisions[]
+	colRevDescription := ""
 	prevColRev_revStateName := "NewCollectionCreated"
 	initialRevStateName := "Ready"
-	dbColRev, err := DbColRevisionNew(dbC.ID, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
+	dbColRev, err := DbColRevisionNew(dbC.ID, colRevDescription, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
 	if err != nil {
 		// Delete the DbCollection if creating the revision failed
 		if err := dbC.Delete(dbC); err != nil {
@@ -60,7 +67,9 @@ func DbCollectionNew(
 	dbC.DbColRevisions = append(dbC.DbColRevisions, dbColRev)
 
 	// Col.DbAccessPolicy
-	dbC.DbAccessPolicy, err = DbAccessPolicyNew(dbC.ID, adminUsers, adminGroups, readerUsers, readerGroups)
+	dbC.DbAccessPolicy, err = DbAccessPolicyNew(
+		dbC.ID,
+		accessPolicyParams)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +119,26 @@ func (d *DbCollection) SetName(newName string) error {
 		}
 	}
 	d.Name = newName
+	return d.Save(d)
+}
+
+func (d *DbCollection) GetDescription() (string, error) {
+	// Description might change, so we always reload it from the database
+	if err := d.Reload(d); err != nil {
+		return "", err
+	}
+	return d.Description, nil
+}
+
+func (d *DbCollection) SetDescription(newDescription string) error {
+	// Reload before Saving: to assure we have the latest data from db
+	{
+		err := d.Reload(d)
+		if err != nil {
+			return err
+		}
+	}
+	d.Description = newDescription
 	return d.Save(d)
 }
 
@@ -165,12 +194,12 @@ func (d *DbCollection) GetDbColRevisionLatest() (dbColRevLatest *DbColRevision, 
 	return dbColRevs[len(dbColRevs)-1], nil
 }
 
-func (d *DbCollection) AppendDbColRevision(initialRevStateName string, userWhoTriggered string) error {
+func (d *DbCollection) AppendDbColRevision(colRevDescription string, initialRevStateName string, userWhoTriggered string) error {
 	prevColRev_revStateName, err := d.GetRevStateLatestName()
 	if err != nil {
 		return err
 	}
-	_, err = DbColRevisionNew(d.ID, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
+	_, err = DbColRevisionNew(d.ID, colRevDescription, prevColRev_revStateName, initialRevStateName, userWhoTriggered)
 	return err
 }
 

@@ -19,8 +19,54 @@
 
 ## TODO
 
+- Tzzz) start adding webpages
 
-+ Tzzz) gorm does not support fields of type []string (error "unsupported data type: &[]")
+- Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations  
+
+- Tzzz) When RevState is "ErrorProvisioningFailed". there is no next-state possible. How to solve this?
+
+
+- T999) clean existing TOREVIEW, TBD, TODO, WIP
+
+
+
+### TODO-future-versions?
+
+- fix deadlock-by-silent-runner-death: if a runner gets unexpectedly killed (or server gets killed), the collection will keep the Ongoing state forever. There should be a mechanism (api call or whatever) to change such states in the db to Failed-or-appropriate, so that it can be restarted by the user
+
+- add governance:
+  - implement userlogin via DEX
+  - WebCollectionNew should ask user which user/group-objid should be owners of the collection
+  - Collection should store field with owners user/group-objids
+  - each http request shuold validate and let current user access only the collections he is owner of (deny all other requests for collections not-owner)
+  - in-some-web there should be possible to update the user/group-objids
+
+- WebCollectionDelete + etc
+- CollectionNew and CollectionDelete scripts: \CatalogBlueprint\{CollectionNew,CollectionDelete} 
+
+
+## DONE
+
++ T011) add description field to the following types.
+  It should initially be set by constructor, with getter/setter methods GetDescription() SetDescription()
+  - Collection (and underlying DbCollection)
+  - ColRevision (and DbColRevision)
+
+
++ T010) gorm::main.go: ReLoading from db the AutoBus records (Alice should only be in Bus2)
+  Not working, see how to properly delete an element from a slice in gorm 
+
++ T009) add DbAccessPolicyParams so it is used in all method-params that capture it (collection methods or whatever). It will be better to have a type there instead of loosen []strings
+  ```
+    type DbAccessPolicyParams struct {
+      AdminUsers   []string
+      AdminGroups  []string
+      ReaderUsers  []string
+      ReaderGroups []string
+    }
+  ``` 
+
++ T008) gorm does not support fields of type []string (error "unsupported data type: &[]")
   + undo DbAdminUser 
     + del DbAdminUser
 
@@ -48,53 +94,8 @@
         . Group
     + review AccessPolicy methods: use DbAccessPolicyMapping to get []string and should work
 
-  - TzzZ) add DbAccessPolicyParams so it is used in all method-params that capture it (collection methods or whatever). It will be better to have a type there instead of loosen []strings
-    ```
-      type DbAccessPolicyParams struct {
-        AdminUsers   []string
-        AdminGroups  []string
-        ReaderUsers  []string
-        ReaderGroups []string
-      }
-    ``` 
 
 
-- Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations
-  
-
-- Tzzz) gorm::main.go: ReLoading from db the AutoBus records (Alice should only be in Bus2)
-  Not working, see how to properly delete an element from a slice in gorm 
-
-- Tzzz) start adding webpages
-
-- Tzzz) add description field to the following types.
-  It should initially be set by constructor, with getter/setter methods GetDescription() SetDescription()
-  - Collection (and underlying DbCollection)
-  - ColRevision (and DbColRevision)
-
-- Tzzz) When RevState is "ProvisiningFailed". there is no next-state possible. How to solve this?
-
-
-- T999) clean existing TOREVIEW, TBD, TODO, WIP
-
-
-
-### TODO-future-versions?
-
-- fix deadlock-by-silent-runner-death: if a runner gets unexpectedly killed (or server gets killed), the collection will keep the Ongoing state forever. There should be a mechanism (api call or whatever) to change such states in the db to Failed-or-appropriate, so that it can be restarted by the user
-
-- add governance:
-  - implement userlogin via DEX
-  - WebCollectionNew should ask user which user/group-objid should be owners of the collection
-  - Collection should store field with owners user/group-objids
-  - each http request shuold validate and let current user access only the collections he is owner of (deny all other requests for collections not-owner)
-  - in-some-web there should be possible to update the user/group-objids
-
-- WebCollectionDelete + etc
-- CollectionNew and CollectionDelete scripts: \CatalogBlueprint\{CollectionNew,CollectionDelete} 
-
-
-## DONE
 
 + T007) - models and dbModels foundation
   + ColRev and up:

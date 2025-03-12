@@ -10,6 +10,8 @@ import (
 type DbColRevisionIfc interface {
 	GetID() uint
 	GetDbCollectionID() (uint, error)
+	GetDescription() (string, error)
+	SetDescription(string) error
 	GetDbRevStates() ([]*DbRevState, error)
 	GetCreationDate() (time.Time, error)
 	GetModDate() (time.Time, error)
@@ -23,12 +25,13 @@ type DbColRevisionIfc interface {
 // DbColRevision represents a collection revision in the database
 type DbColRevision struct {
 	gormCrud.GormCrud[DbColRevision]
-	DbCollectionID uint          // 1DbCollection-to-manyDbColRevisions - Foreign key to DbCollection
+	DbCollectionID uint // 1DbCollection-to-manyDbColRevisions - Foreign key to DbCollection
+	Description    string
 	DbRevStates    []*DbRevState // 1DbColRevision-to-manyDbRevStates
 }
 
 // DbColRevisionNew creates a new DbColRevision
-func DbColRevisionNew(dbCollectionID uint, prevColRev_revStateName string, initialRevStateName string, userWhoTriggered string) (dbColRev *DbColRevision, err error) {
+func DbColRevisionNew(dbCollectionID uint, colRevDescription string, prevColRev_revStateName string, initialRevStateName string, userWhoTriggered string) (dbColRev *DbColRevision, err error) {
 	// Validate if transition prevColRev_revStateName -> initialRevStateName is allowed
 	isValid, err := isValidRevStateTransition(prevColRev_revStateName, initialRevStateName)
 	if err != nil {
@@ -41,6 +44,8 @@ func DbColRevisionNew(dbCollectionID uint, prevColRev_revStateName string, initi
 	dbColRev = &DbColRevision{}
 	// Set dbColRev.DbCollectionID, needed for DbRevStateNew()
 	dbColRev.DbCollectionID = dbCollectionID
+	// Set description
+	dbColRev.Description = colRevDescription
 	// Save the DbColRevision to sets its ID required for DbRevStateNew()
 	err = dbColRev.Save(dbColRev)
 	if err != nil {
@@ -88,6 +93,23 @@ func (d *DbColRevision) GetDbCollectionID() (uint, error) {
 		return 0, fmt.Errorf("DbCollectionID is 0, unexpected")
 	}
 	return d.DbCollectionID, nil
+}
+
+// GetDescription returns the description of the DbColRevision
+func (d *DbColRevision) GetDescription() (string, error) {
+	if err := d.Reload(d); err != nil {
+		return "", err
+	}
+	return d.Description, nil
+}
+
+// SetDescription sets the description of the DbColRevision
+func (d *DbColRevision) SetDescription(description string) error {
+	if err := d.Reload(d); err != nil {
+		return err
+	}
+	d.Description = description
+	return d.Save(d)
 }
 
 // GetDbRevStates returns all associated DbRevStates
@@ -205,37 +227,36 @@ func (d *DbColRevision) IsEditable() (bool, error) {
 }
 
 /*
-```
 RevStates flow diagram:
 
-	A ColRev-N starts from the ColRev-N-1 "Ready", and then follows transitions which finally ends-up in either "Ready" or "ErrorZZZZ"
-	A ColRev-N+1 can only start from a "Ready"-ColRev-N but cannot start from a "ErrorZZZZ"-ColRev-N
+    A ColRev-N starts from the ColRev-N-1 "Ready", and then follows transitions which finally ends-up in either "Ready" or "ErrorZZZZ"
+    A ColRev-N+1 can only start from a "Ready"-ColRev-N but cannot start from a "ErrorZZZZ"-ColRev-N
 
-	_________ColRev-N-1_____.___________ ColRev-N _________________________________________________.
-                            .                                                                      .
+            _________ColRev-N-1_____.___________ ColRev-N _________________________________________________.
+                                    .                                                                      .
 
-CollectionEdit FLOW
+        CollectionEdit FLOW
 
-                Ready ___   .                                                               Ready  .
-            	         \__.__                                                               A    .
-	                        .  V                                                              |    .
-	                        . CollectionEditOngoing   --->  CollectionEditCancelled  >------->+    .
-            	            .       v                                                         |    .
-            	            . CollectionEditCompleted                                         |    .
-            	            .       |                                                         |    .
-            	            .       v                                                         |    .
-            	            . ProvisioningOngoing     --->  ErrorProvisioningFailed           |    .
-            	            .       v                                                         A    .
-	                        . ProvisioningCompleted   >-------------------------------------->+    .
-
-
-NewCollectionCreated FLOW
-
-	NewCollectionCreated >--.-------------------------------------------------------------> Ready  .
+                        Ready ___   .                                                               Ready  .
+                                 \__.__                                                               A    .
+                                    .  V                                                              |    .
+                                    . CollectionEditOngoing   --->  CollectionEditCancelled  >------->+    .
+                                    .       v                                                         |    .
+                                    . CollectionEditCompleted                                         |    .
+                                    .       |                                                         |    .
+                                    .       v                                                         |    .
+                                    . ProvisioningOngoing     --->  ErrorProvisioningFailed           |    .
+                                    .       v                                                         A    .
+                                    . ProvisioningCompleted   >-------------------------------------->+    .
 
 
+        NewCollectionCreated FLOW
 
-```
+            NewCollectionCreated >--.-------------------------------------------------------------> Ready  .
+
+
+
+
 */
 // Define valid transitions based on the flows diagram
 // Include in this map keys all the existing states, even if they dont have any transition ("MyStateWithNoTransitions" = {})

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"vendingMaxine/packages/models/dbModels"
+	"vendingMaxine/packages/sharedTypes"
 )
 
 type Collection struct {
@@ -14,14 +15,18 @@ type Collection struct {
 
 func CollectionNew(
 	collectionName string,
-	adminUsers []string, adminGroups []string,
-	readerUsers []string, readerGroups []string,
+	description string, // New parameter
+	accessPolicyParams sharedTypes.AccessPolicyParams,
 	userWhoTriggered string,
 ) (*Collection, error) {
 	// create DbCollection into dbCollectionIfc and return Collection
 	c := &Collection{}
 	var err error
-	c.dbIfc, err = dbModels.DbCollectionNew(collectionName, adminUsers, adminGroups, readerUsers, readerGroups, userWhoTriggered)
+	c.dbIfc, err = dbModels.DbCollectionNew(
+		collectionName,
+		description, // Pass description to DbCollectionNew
+		accessPolicyParams,
+		userWhoTriggered)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +67,14 @@ func (o *Collection) GetID() (ID string, err error) {
 
 func (c *Collection) GetName() (string, error) {
 	return c.dbIfc.GetName()
+}
+
+func (c *Collection) GetDescription() (string, error) {
+	return c.dbIfc.GetDescription()
+}
+
+func (c *Collection) SetDescription(newDescription string) error {
+	return c.dbIfc.SetDescription(newDescription)
 }
 
 func (c *Collection) GetAccessPolicy() (*AccessPolicy, error) {
@@ -136,8 +149,8 @@ func (c *Collection) GetRevStateLatestUserWhoTriggered() (string, error) {
 // appendColRevision appends a new ColRevision to the collection.
 // It implicitly validates if it is possible to transit from whatever-current-state to the proposed initialRevStateName
 // It's private method, to be used by other public methods of this package, like Do_CollectionEdit()
-func (c *Collection) appendColRevision(initialRevStateName string, userWhoTriggered string) error {
-	return c.dbIfc.AppendDbColRevision(initialRevStateName, userWhoTriggered)
+func (c *Collection) appendColRevision(colRevDescription string, initialRevStateName string, userWhoTriggered string) error {
+	return c.dbIfc.AppendDbColRevision(colRevDescription, initialRevStateName, userWhoTriggered)
 }
 
 func (c *Collection) GetCreationDate() (time.Time, error) {
@@ -174,6 +187,7 @@ func (c *Collection) IsEditable() (bool, error) {
 }
 
 // Do_CollectionEdit starts a collectionEdit
-func (c *Collection) DoCollectionEdit(userWhoTriggered string) error {
-	return c.appendColRevision("CollectionEditOngoing", userWhoTriggered)
+func (c *Collection) DoCollectionEdit(colRevDescription string, userWhoTriggered string) error {
+	initialStateName := "CollectionEditOngoing"
+	return c.appendColRevision(colRevDescription, initialStateName, userWhoTriggered)
 }

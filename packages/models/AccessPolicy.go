@@ -3,20 +3,23 @@ package models
 import (
 	"fmt"
 	"vendingMaxine/packages/models/dbModels"
+	"vendingMaxine/packages/sharedTypes"
 )
 
 type AccessPolicy struct {
 	dbIfc dbModels.DbAccessPolicyIfc
 }
 
-func AccessPolicyNew(collectionID string, adminUsers, adminGroups, readerUsers, readerGroups []string) (*AccessPolicy, error) {
+func AccessPolicyNew(collectionID string, accessPolicyParams sharedTypes.AccessPolicyParams) (*AccessPolicy, error) {
 	collectionIDuint, err := Collection_convert_ID_2_IDuint(collectionID)
 	if err != nil {
 		return nil, err
 	}
 
 	ap := &AccessPolicy{}
-	ap.dbIfc, err = dbModels.DbAccessPolicyNew(collectionIDuint, adminUsers, adminGroups, readerUsers, readerGroups)
+	ap.dbIfc, err = dbModels.DbAccessPolicyNew(
+		collectionIDuint,
+		accessPolicyParams)
 	if err != nil {
 		return nil, err
 	}
