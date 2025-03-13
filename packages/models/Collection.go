@@ -84,7 +84,7 @@ func (c *Collection) GetAccessPolicy() (*AccessPolicy, error) {
 	}
 	dbAPIDuint := dbAP.GetID()
 	apIDuint := dbAPIDuint
-	apID := Collection_convert_IDuint_2_ID(apIDuint)
+	apID := AccessPolicy_convert_IDuint_2_ID(apIDuint)
 	var ap *AccessPolicy
 	ap, err = AccessPolicyLoad(apID)
 	if err != nil {
