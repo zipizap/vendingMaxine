@@ -9,7 +9,6 @@
   ObjA cannot call ObjAAA directly. ObjAAA cannot call ObjAA or ObjA.   
   This way, the dependencies are clear and the code is easier to maintain and understand.
 
-- userlogin: for now just have a stub with username "admin", email "admin@local.local", uniqueID "00000000-0000-0000-0000-000000000000"
 
 - Drawio diagram: prefer web version (desktop-app requires ?root-suid? wtf?)  
   https://app.diagrams.net/
@@ -19,14 +18,35 @@
 
 ## TODO
 
-- Tzzz) Introduce GlobalAdminGroup:
-  - It's value should be read from the config.yaml and not saved into db.  
-  - At runtime, the related functions should use it to validate access.  
-  - This allows the GlobalAdminGroup to be changed in a simple way, by changing config.yaml and restarting the app.  
+- T012) Think how to do user-authz with Collection (Models) operations
+  - Logic:
+    . Assume we will have a currentUserUser and currentUserGroups that can be passed in the parameter struct, to validate access
+    . We could implement a package `opHub` that separates and mediates all operations between webserver side and Models  
+      This way we could centralize and control all operations required by webserver, in a separate way from the Models.
+      And in this opHub it would be possible to enforce user-authz 
+  - Create opHub package with the following methods:
+    - CollectionsListOfUser(req *CollectionsListOfUserReq) (resp *CollectionsListOfUserResp, err error) 
+    - CollectionNew(req *CollectionNewReq) (resp *CollectionNewResp, err error) 
+    - CollectionEditOngoing(req *CollectionEditOngoingReq) (resp *CollectionEditOngoingResp, err error)
+    - CollectionEditCancelled(req *CollectionEditCancelledReq) (resp *CollectionEditCancelledResp, err error)
+    - CollectionEditCompleted(req *CollectionEditCompletedReq) (resp *CollectionEditCompletedResp, err error)
+    - CollectionProvisioningOngoing(req *CollectionProvisioningOngoingReq) (resp *CollectionProvisioningOngoingResp, err error)
+    - CollectionErrorProvisioningFailed(req *CollectionErrorProvisioningFailedReq) (resp *CollectionErrorProvisioningFailedResp, err error)
+    - .CollectionProvisioningCompleted(req *CollectionProvisioningCompletedReq) (resp *CollectionProvisioningCompletedResp, err error)
+
+
+- Tzzz) Introduce GlobalAdminGroup, GlobalReaderGroup:
+  - Logic:
+    . It's value should be read from the config.yaml and not saved into db.  
+    . At runtime, the related functions should use it to validate access.  
+    . This allows the GlobalAdminGroup/GlobalReaderGroup to be changed in a simple way, by changing config.yaml and restarting the app.  
+  - improve config.yaml to read GlobalAdminGroup,GlobalReaderGroup into a global variable
+  - improve the opHub methods and types, to receive in their func params the GlobalAdminGroup,GlobalReaderGroup values, to validate access 
  
 - Tzzz) start adding webpages
 
-- Tzzz) When RevState is "ErrorProvisioningFailed". there is no next-state possible. How to solve this?
+- Tzzz) When RevState is "ErrorProvisioningFailed". there is no next-state possible. How to solve this? 
+  . ? Let GlobalAdmins be able to perform some global-admin-special-operations, like forcing a transition to "ReadyToRetry" or something? 
 
 - Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations  
 
