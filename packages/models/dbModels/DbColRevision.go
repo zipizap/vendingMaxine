@@ -19,7 +19,7 @@ type DbColRevisionIfc interface {
 	GetDbRevStateLatestName() (string, error)
 	GetRevStateLatestUserWhoTriggered() (string, error)
 	IsEditable() (bool, error)
-	AppendDbRevState(revStateName string, userWhoTriggered string, logs []byte) error
+	AppendDbRevState(revStateName string, userWhoTriggered string) error
 }
 
 // DbColRevision represents a collection revision in the database
@@ -178,7 +178,9 @@ func (d *DbColRevision) GetRevStateLatestUserWhoTriggered() (string, error) {
 }
 
 // AppendDbRevState adds a new RevState to the collection revision.
-func (d *DbColRevision) AppendDbRevState(newRevStateName string, userWhoTriggered string, logs []byte) error {
+// It is the way to advance the state of the collection revision.
+// It implicitly validates if it is possible to transit from whatever-current-state to the proposed newRevStateName
+func (d *DbColRevision) AppendDbRevState(newRevStateName, userWhoTriggered string) error {
 	// Validate if transition from the currRevState --> newRevState is allowed
 	// currRevState is the latest RevState in this ColRev
 	currRevStateName, err := d.GetDbRevStateLatestName()

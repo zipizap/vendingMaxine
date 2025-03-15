@@ -120,8 +120,10 @@ func (c *ColRevision) GetRevStateLatestUserWhoTriggered() (string, error) {
 }
 
 // AppendRevState adds a new RevState to the collection revision
-func (c *ColRevision) AppendRevState(revStateName string, userWhoTriggered string, logs []byte) error {
-	return c.dbIfc.AppendDbRevState(revStateName, userWhoTriggered, logs)
+// This is the only way to advance the ColRevision to a new RevState
+// It implicitly validates the transition from the current RevState to the newRevStateName
+func (c *ColRevision) AppendRevState(newRevStateName string, userWhoTriggered string) error {
+	return c.dbIfc.AppendDbRevState(newRevStateName, userWhoTriggered)
 }
 
 // GetCreationDate returns the creation date of the first RevState

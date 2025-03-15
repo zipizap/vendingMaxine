@@ -48,6 +48,50 @@ func CollectionLoad(colID string) (*Collection, error) {
 	return c, nil
 }
 
+// CollectionsList returns the list of collections for the user and groups
+// It returns two lists: readerCols and adminCols
+// readerCols are the collections that the user can read
+// adminCols are the collections that the user can edit
+// If there are no collections, it returns empty lists
+func CollectionsList(user string, groups []string) (readerCols []*Collection, adminCols []*Collection, err error) {
+	// Get the list of collections
+	readerDbCols, adminDbCols, err := dbModels.DbCollectionsList(user, groups)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Convert to readerCols and adminCols
+	readerCols = make([]*Collection, 0, len(readerDbCols))
+	adminCols = make([]*Collection, 0, len(adminDbCols))
+	for _, dbCol := range readerDbCols {
+		var col *Collection
+		{
+			dbColIDuint := dbCol.GetID()
+			colID := Collection_convert_IDuint_2_ID(dbColIDuint)
+			col, err = CollectionLoad(colID)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		readerCols = append(readerCols, col)
+	}
+
+	for _, dbCol := range adminDbCols {
+		var col *Collection
+		{
+			dbColIDuint := dbCol.GetID()
+			colID := Collection_convert_IDuint_2_ID(dbColIDuint)
+			col, err = CollectionLoad(colID)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		adminCols = append(adminCols, col)
+	}
+
+	return readerCols, adminCols, nil
+}
+
 func Collection_convert_ID_2_IDuint(ID string) (IDuint uint, err error) {
 	return convert_IDstring_2_IDuint(ID)
 }
@@ -91,6 +135,10 @@ func (c *Collection) GetAccessPolicy() (*AccessPolicy, error) {
 		return nil, err
 	}
 	return ap, nil
+}
+
+func (c *Collection) GetRole(user string, groups []string) (role string, err error) {
+	return c.dbIfc.GetRole(user, groups)
 }
 
 func (c *Collection) Rename(newName string) error {
@@ -157,6 +205,8 @@ func (c *Collection) GetCreationDate() (time.Time, error) {
 	return c.dbIfc.GetCreationDate()
 }
 
+// GetModDate returns the last modified date of the collection
+// Returns the mod date of the latest ColRev if it exists, otherwise returns the mod date of the collection
 func (c *Collection) GetModDate() (time.Time, error) {
 	colRevLatest, err := c.GetColRevisionLatest()
 	if err != nil {
@@ -187,7 +237,141 @@ func (c *Collection) IsEditable() (bool, error) {
 }
 
 // Do_CollectionEdit starts a collectionEdit
-func (c *Collection) DoCollectionEdit(colRevDescription string, userWhoTriggered string) error {
+func (c *Collection) DoCollectionEditOngoing(colRevDescription string, userWhoTriggered string) error {
+	// Create a new colRev with initialStateName "CollectionEditOngoing"
 	initialStateName := "CollectionEditOngoing"
 	return c.appendColRevision(colRevDescription, initialStateName, userWhoTriggered)
+}
+
+func (c *Collection) DoCollectionEditCancelled(userWhoTriggered string) error {
+	// Advance existing colRev to new state "CollectionEditCancelled"
+	{
+		newRevStateName := "CollectionEditCancelled"
+		err := c.appendRevStateToColRevLatest(newRevStateName, userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Do things for CollectionEditCancelled
+	// ...none for now...
+
+	// Advance existing colRev from CollectionEditCancelled to Ready
+	{
+		err := c.DoCollectionReady(userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Collection) DoCollectionReady(userWhoTriggered string) error {
+	// Use existing ColRev, and advance it to new state "Ready"
+	newRevStateName := "Ready"
+	return c.appendRevStateToColRevLatest(newRevStateName, userWhoTriggered)
+}
+
+// appendRevState appends a new RevState to the ColRevLatest
+// Its the way to progress a existing ColRev to a new RevState
+// It implicitly validates if it is possible to transit from whatever-current-state to the proposed newRevStateName
+func (c *Collection) appendRevStateToColRevLatest(newRevStateName string, userWhoTriggered string) error {
+	colRevLatest, err := c.GetColRevisionLatest()
+	if err != nil {
+		return err
+	}
+	if colRevLatest == nil {
+		return fmt.Errorf("no ColRevision exists yet")
+	}
+	return colRevLatest.AppendRevState(newRevStateName, userWhoTriggered)
+}
+
+func (c *Collection) DoCollectionEditCompleted(userWhoTriggered string) error {
+	// Advance existing colRev to new state "CollectionEditCompleted"
+	{
+		newRevStateName := "CollectionEditCompleted"
+		err := c.appendRevStateToColRevLatest(newRevStateName, userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process any required operations for CollectionEditCompleted
+	// ...none for now...
+
+	// Advance existing colRev from CollectionEditCompleted to ProvisioningOngoing
+	{
+		err := c.DoCollectionProvisioningOngoing(userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Collection) DoCollectionProvisioningOngoing(userWhoTriggered string) error {
+	// Advance existing colRev to new state "ProvisioningOngoing"
+	{
+		newRevStateName := "ProvisioningOngoing"
+		err := c.appendRevStateToColRevLatest(newRevStateName, userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process any required operations for ProvisioningOngoing
+	// ...none for now...
+
+	// Advance existing colRev from ProvisioningOngoing to ProvisioningCompleted
+	{
+		err := c.DoCollectionProvisioningCompleted(userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+func (c *Collection) DoCollectionProvisioningCompleted(userWhoTriggered string) error {
+	// Advance existing colRev to new state "ProvisioningCompleted"
+	{
+		newRevStateName := "ProvisioningCompleted"
+		err := c.appendRevStateToColRevLatest(newRevStateName, userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process any required operations for ProvisioningCompleted
+	// ...none for now...
+
+	// Advance existing colRev from ProvisioningCompleted to Ready
+	{
+		err := c.DoCollectionReady(userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Collection) DoCollectionErrorProvisioningFailed(userWhoTriggered string) error {
+	// Advance existing colRev to new state "ErrorProvisioningFailed"
+	{
+		newRevStateName := "ErrorProvisioningFailed"
+		err := c.appendRevStateToColRevLatest(newRevStateName, userWhoTriggered)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process any required operations for ErrorProvisioningFailed
+	// ...none for now...
+
+	return nil
 }

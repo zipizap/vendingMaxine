@@ -16,6 +16,7 @@ type DbAccessPolicyIfc interface {
 	SetReaderUsers([]string) error
 	GetReaderGroups() ([]string, error)
 	SetReaderGroups([]string) error
+	GetRole(user string, groups []string) (role string, err error)
 	IsAdmin(user string, groups []string) (bool, error)
 	IsReader(user string, groups []string) (bool, error)
 	GetDbCollectionID() (uint, error)
@@ -482,6 +483,29 @@ func (d *DbAccessPolicy) SetReaderGroups(groups []string) error {
 	return nil
 }
 
+// GetRole returns the role of a user for this policy
+// role is either "admin", "reader", or ""
+func (d *DbAccessPolicy) GetRole(user string, groups []string) (role string, err error) {
+	var isAdmin bool
+	isAdmin, err = d.IsAdmin(user, groups)
+	if err != nil {
+		return "", err
+	}
+	if isAdmin {
+		return "admin", nil
+	}
+
+	isReader, err := d.IsReader(user, groups)
+	if err != nil {
+		return "", err
+	}
+	if isReader {
+		return "reader", nil
+	}
+	return "", nil
+}
+
+// IsAdmin checks if a user is an admin for this policy
 func (d *DbAccessPolicy) IsAdmin(user string, groups []string) (bool, error) {
 	// Check if user directly has admin role
 	dbAPM := &DbAccessPolicyMapping{}
@@ -517,6 +541,7 @@ func (d *DbAccessPolicy) IsAdmin(user string, groups []string) (bool, error) {
 	return false, nil
 }
 
+// IsReader checks if a user is a reader for this policy
 func (d *DbAccessPolicy) IsReader(user string, groups []string) (bool, error) {
 	// Check if user is an admin (admins can read)
 	{

@@ -18,24 +18,7 @@
 
 ## TODO
 
-- T012) Think how to do user-authz with Collection (Models) operations
-  - Logic:
-    . Assume we will have a currentUserUser and currentUserGroups that can be passed in the parameter struct, to validate access
-    . We could implement a package `opHub` that separates and mediates all operations between webserver side and Models  
-      This way we could centralize and control all operations required by webserver, in a separate way from the Models.
-      And in this opHub it would be possible to enforce user-authz 
-  - Create opHub package with the following methods:
-    - CollectionsListOfUser(req *CollectionsListOfUserReq) (resp *CollectionsListOfUserResp, err error) 
-    - CollectionNew(req *CollectionNewReq) (resp *CollectionNewResp, err error) 
-    - CollectionEditOngoing(req *CollectionEditOngoingReq) (resp *CollectionEditOngoingResp, err error)
-    - CollectionEditCancelled(req *CollectionEditCancelledReq) (resp *CollectionEditCancelledResp, err error)
-    - CollectionEditCompleted(req *CollectionEditCompletedReq) (resp *CollectionEditCompletedResp, err error)
-    - CollectionProvisioningOngoing(req *CollectionProvisioningOngoingReq) (resp *CollectionProvisioningOngoingResp, err error)
-    - CollectionErrorProvisioningFailed(req *CollectionErrorProvisioningFailedReq) (resp *CollectionErrorProvisioningFailedResp, err error)
-    - .CollectionProvisioningCompleted(req *CollectionProvisioningCompletedReq) (resp *CollectionProvisioningCompletedResp, err error)
-
-
-- Tzzz) Introduce GlobalAdminGroup, GlobalReaderGroup:
+- T013) Introduce GlobalAdminGroup, GlobalReaderGroup:
   - Logic:
     . It's value should be read from the config.yaml and not saved into db.  
     . At runtime, the related functions should use it to validate access.  
@@ -70,6 +53,23 @@
 
 
 ## DONE
+
++ T012) Think how to do user-authz with Collection (Models) operations
+  + Logic:
+    . Assume we will have a currentUserUser and currentUserGroups that can be passed in the parameter struct, to validate access
+    . We could implement a package `opHub` that separates and mediates all operations between webserver side and Models  
+      This way we could centralize and control all operations required by webserver, in a separate way from the Models.
+      And in this opHub it would be possible to enforce user-authz 
+    . All types zzzReq should contain a field `Client CurrentClient` that will be used to validate access in the methods
+    . All methods should validate access of `Client CurrentClient`, and return an error if access is denied
+  + Create opHub package with the following methods:
+    + CollectionsList(req *CollectionsListReq) (resp *CollectionsListResp, err error) 
+    + CollectionNew(req *CollectionNewReq) (resp *CollectionNewResp, err error) 
+    + DoCollectionEditOngoing(req *CollectionEditOngoingReq) (resp *CollectionEditOngoingResp, err error)
+    + DoCollectionEditCancelled(req *CollectionEditCancelledReq) (resp *CollectionEditCancelledResp, err error)
+    + DoCollectionEditCompleted(req *CollectionEditCompletedReq) (resp *CollectionEditCompletedResp, err error)
+    + add validation of CurrentClient
+
 
 + T011) add description field to the following types.
   It should initially be set by constructor, with getter/setter methods GetDescription() SetDescription()

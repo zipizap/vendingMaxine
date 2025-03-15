@@ -105,6 +105,12 @@ func (ap *AccessPolicy) SetReaders(readerUsers []string, readerGroups []string) 
 	return nil
 }
 
+// GetRole returns the role of a user for this policy
+// role is either "admin", "reader", or ""
+func (ap *AccessPolicy) GetRole(user string, groups []string) (role string, err error) {
+	return ap.dbIfc.GetRole(user, groups)
+}
+
 func (ap *AccessPolicy) IsAdmin(user string, groups []string) (bool, error) {
 	return ap.dbIfc.IsAdmin(user, groups)
 }

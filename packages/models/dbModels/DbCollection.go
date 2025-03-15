@@ -16,6 +16,7 @@ type DbCollectionIfc interface {
 	GetDescription() (string, error)
 	SetDescription(string) error
 	GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error)
+	GetRole(user string, groups []string) (role string, err error)
 	GetDbColRevisions() (dbColRevs []*DbColRevision, err error)
 	GetDbColRevisionLatest() (dbColRevLatest *DbColRevision, err error)
 	AppendDbColRevision(colRevDescription string, initialRevStateName string, userWhoTriggered string) error
@@ -98,6 +99,52 @@ func DbCollectionLoad(dbColId uint) (*DbCollection, error) {
 	return dbC, nil
 }
 
+// DbCollectionsList returns two lists of DbCollections: one with reader access and one with admin access
+func DbCollectionsList(user string, groups []string) (readerDbCols []*DbCollection, adminDbCols []*DbCollection, err error) {
+	// Create a temporary DbCollection to perform the query
+	dbC := &DbCollection{}
+
+	// Get all collections from the database
+	allDbCollections, err := dbC.LoadWhere("")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create slices to hold the filtered collections
+	readerDbCols = make([]*DbCollection, 0)
+	adminDbCols = make([]*DbCollection, 0)
+
+	// Check each collection for user access rights
+	for _, dbCollection := range allDbCollections {
+		// Load the access policy for this collection
+		dbAP, err := dbCollection.GetDbAccessPolicy()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Check if the user is an admin
+		isAdmin, err := dbAP.IsAdmin(user, groups)
+		if err != nil {
+			return nil, nil, err
+		}
+		if isAdmin {
+			adminDbCols = append(adminDbCols, dbCollection)
+			continue // If user is admin, no need to check if they're also a reader
+		}
+
+		// Check if the user is a reader
+		isReader, err := dbAP.IsReader(user, groups)
+		if err != nil {
+			return nil, nil, err
+		}
+		if isReader {
+			readerDbCols = append(readerDbCols, dbCollection)
+		}
+	}
+
+	return readerDbCols, adminDbCols, nil
+}
+
 func (d *DbCollection) GetID() uint {
 	return d.ID
 }
@@ -145,6 +192,14 @@ func (d *DbCollection) SetDescription(newDescription string) error {
 func (d *DbCollection) GetDbAccessPolicy() (dbAP *DbAccessPolicy, err error) {
 	dbAP, err = DbAccessPolicyLoad(d.DbAccessPolicy.ID)
 	return dbAP, err
+}
+
+func (d *DbCollection) GetRole(user string, groups []string) (role string, err error) {
+	dbAP, err := d.GetDbAccessPolicy()
+	if err != nil {
+		return "", err
+	}
+	return dbAP.GetRole(user, groups)
 }
 
 func (d *DbCollection) GetDbColRevisions() (dbColRevs []*DbColRevision, err error) {
