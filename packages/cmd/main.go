@@ -4,6 +4,7 @@ import (
 	"vendingMaxine/packages/gormCrud"
 	"vendingMaxine/packages/logger"
 	"vendingMaxine/packages/models/dbModels"
+	opshub "vendingMaxine/packages/opsHub"
 	"vendingMaxine/packages/webserver"
 
 	"github.com/rs/zerolog/log"
@@ -34,8 +35,11 @@ Logging:
 	Level: "debug"                    # String: "debug", "info", "warn", "error", "fatal", "panic"
 	Type: "text-with-colors"          # String: "json", "text", or "text-with-colors"
 	TimeFormat: "2006-01-02T15:04:05.999Z07:00"  # String: Go time format string
-	Output: "both:/var/log/app.log"   # String: "console", "file:/path/to/file.log", or "both:/path/to/file.log"
+	Output: "console-and-file:/var/log/app.log"   # String: "console", "file:/path/to/file.log", or "console-and-file:/path/to/file.log"
 
+GlobalGroups:
+    GlobalAdminGroup: "0000-0000-1111" # String: Group ID for global admin group. Is not saved to db, loaded at startup
+	GlobalReaderGroup: "0000-0000-2222" # String: Group ID for global reader group. Is not saved to db, loaded at startup
 */
 // To improve this config, change this struct and nothing else
 type appConfigType struct {
@@ -53,7 +57,11 @@ type appConfigType struct {
 	Database struct {
 		SqliteFilename string `mapstructure:"SqliteFilename"`
 	} `mapstructure:"Database"`
-	Logging logger.Config `mapstructure:"Logging"`
+	Logging      logger.Config `mapstructure:"Logging"`
+	GlobalGroups struct {
+		GlobalAdminGroup  string `mapstructure:"GlobalAdminGroup"`
+		GlobalReaderGroup string `mapstructure:"GlobalReaderGroup"`
+	} `mapstructure:"GlobalGroups"`
 }
 
 var appConfig *appConfigType
@@ -100,6 +108,10 @@ func dbInit() {
 	log.Info().Msg("Database migration completed")
 }
 
+func opsHubInit() {
+	opshub.SetGlobalGroups(appConfig.GlobalGroups.GlobalAdminGroup, appConfig.GlobalGroups.GlobalReaderGroup)
+}
+
 func webserverStart() {
 	log.Info().Msg("Starting web server")
 	webserverConfigOauth := &webserver.ConfigOauthClientDex{
@@ -122,6 +134,7 @@ func Execute() {
 			loggerInit()
 			showConfigInLogger()
 			dbInit()
+			opsHubInit()
 			webserverStart()
 		},
 	}

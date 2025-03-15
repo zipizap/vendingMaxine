@@ -7,6 +7,11 @@ import (
 	"vendingMaxine/packages/sharedTypes"
 )
 
+var (
+	GlobalAdminGroup  string
+	GlobalReaderGroup string
+)
+
 type CurrentClient struct {
 	User   string
 	Groups []string
@@ -78,6 +83,11 @@ type CollectionProvisioningOngoingReq struct {
 }
 
 type CollectionProvisioningOngoingResp struct {
+}
+
+func SetGlobalGroups(globalAdminGroup string, globalReaderGroup string) {
+	GlobalAdminGroup = globalAdminGroup
+	GlobalReaderGroup = globalReaderGroup
 }
 
 // CollectionsList returns the list of collections for the user and groups
@@ -238,17 +248,25 @@ func CollectionNew(req *CollectionNewReq) (resp *CollectionNewResp, err error) {
 }
 
 // validateUserIsAdmin checks if the user has admin rights for the collection
-// Returns error if the user is not an admin
-func validateUserIsAdmin(col *models.Collection, user string, groups []string) error {
+// Returns (true, nil) if user is admin, (false, nil) if not admin, and (false, error) on error
+func validateUserIsAdmin(col *models.Collection, user string, groups []string) (bool, error) {
+	// Check if user belongs to GlobalAdminGroup
+	for _, group := range groups {
+		if group == GlobalAdminGroup {
+			// User is a global admin, grant admin access
+			return true, nil
+		}
+	}
+
+	// If not a global admin, check collection-specific role
 	role, err := col.GetRole(user, groups)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if role != "admin" {
-		colID, _ := col.GetID()
-		return fmt.Errorf("in collection '%s' the user as role '%s', but this operation requires role 'admin' ", colID, role)
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 // DoCollectionEditOngoing marks the start of a CollectionEdit operation
@@ -263,9 +281,12 @@ func DoCollectionEditOngoing(req *CollectionEditOngoingReq) (resp *CollectionEdi
 	}
 
 	// Validate user is admin
-	err = validateUserIsAdmin(col, req.Client.User, req.Client.Groups)
+	isAdmin, err := validateUserIsAdmin(col, req.Client.User, req.Client.Groups)
 	if err != nil {
 		return nil, err
+	}
+	if !isAdmin {
+		return nil, fmt.Errorf("user is not an admin")
 	}
 
 	// Set the revision state description using the models package
@@ -287,9 +308,12 @@ func DoCollectionEditCancelled(req *CollectionEditCancelledReq) (resp *Collectio
 	}
 
 	// Validate that Client can edit the collection
-	err = validateUserIsAdmin(col, req.Client.User, req.Client.Groups)
+	isAdmin, err := validateUserIsAdmin(col, req.Client.User, req.Client.Groups)
 	if err != nil {
 		return nil, err
+	}
+	if !isAdmin {
+		return nil, fmt.Errorf("user is not an admin")
 	}
 
 	// Set the revision state description using the models package
@@ -312,9 +336,12 @@ func DoCollectionEditCompleted(req *CollectionEditCompletedReq) (resp *Collectio
 	}
 
 	// Validate that Client can edit the collection
-	err = validateUserIsAdmin(col, req.Client.User, req.Client.Groups)
+	isAdmin, err := validateUserIsAdmin(col, req.Client.User, req.Client.Groups)
 	if err != nil {
 		return nil, err
+	}
+	if !isAdmin {
+		return nil, fmt.Errorf("user is not an admin")
 	}
 
 	// Mark the collection edit as completed using the models package

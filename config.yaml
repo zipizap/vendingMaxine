@@ -21,3 +21,7 @@ Logging:
   Type: "text-with-colors"                                # String: "json", "text", or "text-with-colors"
   TimeFormat: "2006-01-02T15:04:05.999Z07:00"             # String: Go time format string
   Output: "both:./log.log"                         # String: "console", "file:/path/to/file.log", or "both:/path/to/file.log"
+
+GlobalGroups:
+  GlobalAdminGroup: "0000-0000-1111" # String: Group ID for global admin group. Is not saved to db, loaded at startup
+  GlobalReaderGroup: "0000-0000-2222" # String: Group ID for global reader group. Is not saved to db, loaded at startup

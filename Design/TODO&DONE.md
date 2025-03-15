@@ -18,13 +18,6 @@
 
 ## TODO
 
-- T013) Introduce GlobalAdminGroup, GlobalReaderGroup:
-  - Logic:
-    . It's value should be read from the config.yaml and not saved into db.  
-    . At runtime, the related functions should use it to validate access.  
-    . This allows the GlobalAdminGroup/GlobalReaderGroup to be changed in a simple way, by changing config.yaml and restarting the app.  
-  - improve config.yaml to read GlobalAdminGroup,GlobalReaderGroup into a global variable
-  - improve the opHub methods and types, to receive in their func params the GlobalAdminGroup,GlobalReaderGroup values, to validate access 
  
 - Tzzz) start adding webpages
 
@@ -53,6 +46,15 @@
 
 
 ## DONE
+
++ T013) Introduce GlobalAdminGroup, GlobalReaderGroup:
+  + Logic:
+    . It's value should be read from the config.yaml and not saved into db.  
+    . At runtime, the related functions should use it to validate access.  
+    . This allows the GlobalAdminGroup/GlobalReaderGroup to be changed in a simple way, by changing config.yaml and restarting the app.  
+  + improve config.yaml to read GlobalAdminGroup,GlobalReaderGroup into a global variable
+  + improve the opHub methods to include in access validation the GlobalAdminGroup,GlobalReaderGroup  
+
 
 + T012) Think how to do user-authz with Collection (Models) operations
   + Logic:

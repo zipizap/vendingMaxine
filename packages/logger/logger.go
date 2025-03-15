@@ -28,7 +28,7 @@ type Config struct {
 	Level      string     `mapstructure:"Level"`
 	Type       OutputType `mapstructure:"Type"`
 	TimeFormat string     `mapstructure:"TimeFormat"`
-	Output     string     `mapstructure:"Output"` // "console", "file:/path/to/file", or "both:/path/to/file"
+	Output     string     `mapstructure:"Output"` // "console", "file:/path/to/file", or "console-and-file:/path/to/file"
 }
 
 var defaultConfig = Config{
@@ -67,7 +67,7 @@ func Init(cfg *Config) {
 
 	// Configure file output if needed
 	var fileWriter io.Writer
-	if outputType == "file" || outputType == "both" {
+	if outputType == "file" || outputType == "console-and-file" {
 		if filePath == "" {
 			log.Warn().Msg("File output specified but no file path provided, defaulting to console only")
 		} else {
@@ -90,7 +90,7 @@ func Init(cfg *Config) {
 
 	// Configure console output
 	var consoleWriter io.Writer
-	if outputType == "console" || outputType == "both" || fileWriter == nil {
+	if outputType == "console" || outputType == "console-and-file" || fileWriter == nil {
 		// Normalize the type value (case-insensitive)
 		formatType := OutputType(strings.ToLower(string(cfg.Type)))
 

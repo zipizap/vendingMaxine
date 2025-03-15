@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 
@@ -13,7 +13,7 @@ import (
 
 // validateYAMLSyntax checks if the YAML file is syntactically correct
 func validateYAMLSyntax(filename string) error {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("error reading YAML file: %w", err)
 	}
