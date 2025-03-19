@@ -6,10 +6,69 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"vendingMaxine/packages/logger"
 
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
+
+// appConfigType represents the config.yaml and env-vars
+// Config file must exist and have all the fields set - missing fields will generate an error.
+// Env-vars with prefix CONFIG_ will override config.yaml values (ex: export CONFIG_DEXCONFIG_SECRET="overriden from env-var")
+// Sensitive values can be set in this file with a "fake" value, and then overriden with env-vars at runtime.
+/* Ex: config.yaml
+# Config file must exist and have all the fields set - missing fields will generate an error.
+# Env-vars with prefix CONFIG_ will override config.yaml values (ex: export CONFIG_DEXCONFIG_SECRET="overriden from env-var")
+# Sensitive values can be set in this file with a "fake" value, and then overriden with env-vars at runtime.
+
+Branding:
+    Name: "My App"                    # String: Application display name
+    Description: "My App Description" # String: Application description
+    LogoPngFile: "myAppLogo.png"      # String: Path to logo PNG file
+
+DexConfig:
+    ClientId: example-app             # String: OAuth client ID
+    ClientSecret: "can be overriden by env-var CONFIG_DEXCONFIG_CLIENTSECRET"               # String: OAuth client secret
+    ClientRedirectURL: http://zzzzz   # String: Full URL for OAuth callbacks
+    DexIssuer: http://yyyyyy          # String: Dex issuer URL
+
+Database:
+    SqliteFilename: "sqlite.db"       # String: Path to SQLite database file
+
+Logging:
+    Level: "debug"                    # String: "debug", "info", "warn", "error", "fatal", "panic"
+    Type: "text-with-colors"          # String: "json", "text", or "text-with-colors"
+    TimeFormat: "2006-01-02T15:04:05.999Z07:00"  # String: Go time format string
+    Output: "console-and-file:/var/log/app.log"   # String: "console", "file:/path/to/file.log", or "console-and-file:/path/to/file.log"
+
+# GlobalGroups that have permissions to all the collections in the app.
+# These groups are loaded at every startup from this config file, so they can be changed between app restarts.
+GlobalGroups:
+    GlobalAdminGroup: "0000-0000-1111" # String: Group ID for global admin group. Is not saved to db, loaded at startup
+    GlobalReaderGroup: "0000-0000-2222" # String: Group ID for global reader group. Is not saved to db, loaded at startup
+*/
+// To improve this config, change this struct and nothing else
+type appConfigType struct {
+	Branding struct {
+		Name        string `mapstructure:"Name"`
+		Description string `mapstructure:"Description"`
+		LogoPngFile string `mapstructure:"LogoPngFile"`
+	} `mapstructure:"Branding"`
+	DexConfig struct {
+		ClientId          string `mapstructure:"ClientId"`
+		ClientSecret      string `mapstructure:"ClientSecret"`
+		ClientRedirectURL string `mapstructure:"ClientRedirectURL"`
+		DexIssuer         string `mapstructure:"DexIssuer"`
+	} `mapstructure:"DexConfig"`
+	Database struct {
+		SqliteFilename string `mapstructure:"SqliteFilename"`
+	} `mapstructure:"Database"`
+	Logging      logger.Config `mapstructure:"Logging"`
+	GlobalGroups struct {
+		GlobalAdminGroup  string `mapstructure:"GlobalAdminGroup"`
+		GlobalReaderGroup string `mapstructure:"GlobalReaderGroup"`
+	} `mapstructure:"GlobalGroups"`
+}
 
 // validateYAMLSyntax checks if the YAML file is syntactically correct
 func validateYAMLSyntax(filename string) error {

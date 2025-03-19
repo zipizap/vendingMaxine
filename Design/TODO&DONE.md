@@ -17,9 +17,21 @@
 
 
 ## TODO
-
  
-- Tzzz) start adding webpages
+- T014) web, introduce package webserver, by adding webpages as in package, with DEX. 
+        The same webs from the package, for a quick start
+        
+
+- Tzzz) refactor webserver: webpages from local subdirs, and more of them 
+    /webpages
+      /WebHome
+      /WebCollections
+      /WebCollectionNew
+      /WebCollectionEdit
+      /WebCollectionDashboard   
+
+
+
 
 - Tzzz) When RevState is "ErrorProvisioningFailed". there is no next-state possible. How to solve this? 
   . ? Let GlobalAdmins be able to perform some global-admin-special-operations, like forcing a transition to "ReadyToRetry" or something? 

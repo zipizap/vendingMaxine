@@ -3,25 +3,27 @@
 # Sensitive values can be set in this file with a "fake" value, and then overriden with env-vars at runtime.
 
 Branding:
-  Name: "My App"                                          # String: Application display name
-  Description: "My App Description"                       # String: Application description
-  LogoPngFile: "myAppLogo.png"                            # String: Path to logo PNG file
+    Name: "My App"                    # String: Application display name
+    Description: "My App Description" # String: Application description
+    LogoPngFile: "myAppLogo.png"      # String: Path to logo PNG file
 
 DexConfig:
-  ClientId: "example-app"                                 # String: OAuth client ID
-  ClientSecret: "fake-value-will-be-set-by-env-var-CONFIG_DEXCONFIG_SECRET"               # String: OAuth client secret
-  ClientRedirectURL: "http://domain-of-myapp/callback"    # String: Full URL of this app, to receive OAuth callbacks from DEX (http)
-  DexIssuer: "http://dex-url"                             # String: Dex issuer URL (http) 
+    ClientId: example-app             # String: OAuth client ID
+    ClientSecret: xxxxx               # String: OAuth client secret
+    ClientRedirectURL: http://zzzzz   # String: Full URL for OAuth callbacks
+    DexIssuer: http://yyyyyy          # String: Dex issuer URL
 
 Database:
-  SqliteFilename: "sqlite.db"                             # String: Path to SQLite database file
+    SqliteFilename: "sqlite.db"       # String: Path to SQLite database file
 
 Logging:
-  Level: "debug"                                          # String: "debug", "info", "warn", "error", "fatal", "panic"
-  Type: "text-with-colors"                                # String: "json", "text", or "text-with-colors"
-  TimeFormat: "2006-01-02T15:04:05.999Z07:00"             # String: Go time format string
-  Output: "both:./log.log"                         # String: "console", "file:/path/to/file.log", or "both:/path/to/file.log"
+    Level: "debug"                    # String: "debug", "info", "warn", "error", "fatal", "panic"
+    Type: "text-with-colors"          # String: "json", "text", or "text-with-colors"
+    TimeFormat: "2006-01-02T15:04:05.999Z07:00"  # String: Go time format string
+    Output: "console-and-file:/var/log/app.log"   # String: "console", "file:/path/to/file.log", or "console-and-file:/path/to/file.log"
 
+# GlobalGroups that have permissions to all the collections in the app.
+# These groups are loaded at every startup from this config file, so they can be changed between app restarts.
 GlobalGroups:
-  GlobalAdminGroup: "0000-0000-1111" # String: Group ID for global admin group. Is not saved to db, loaded at startup
-  GlobalReaderGroup: "0000-0000-2222" # String: Group ID for global reader group. Is not saved to db, loaded at startup
+    GlobalAdminGroup: "0000-0000-1111" # String: Group ID for global admin group. Is not saved to db, loaded at startup
+    GlobalReaderGroup: "0000-0000-2222" # String: Group ID for global reader group. Is not saved to db, loaded at startup
