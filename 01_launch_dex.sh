@@ -1,1 +1,3 @@
-packages/webserver/example/01_launch_dex.sh
+#!/usr/bin/env bash
+set -xefu
+./dex_stuff/dex serve dex_stuff/dex-config.vdx.local.yaml
