@@ -3,27 +3,57 @@
 # Sensitive values can be set in this file with a "fake" value, and then overriden with env-vars at runtime.
 
 Branding:
-    Name: "My App"                    # String: Application display name
-    Description: "My App Description" # String: Application description
-    LogoPngFile: "myAppLogo.png"      # String: Path to logo PNG file
+    # Name - String: Application display name
+    Name: "My VendingMaxine"                    
+    # Description - String: Application description
+    Description: "My VendingMaxine description" 
+    # LogoPngFile - String: Path to logo PNG file
+    LogoPngFile: "myVendingMaxineLogo.png"      
 
-DexConfig:
-    ClientId: example-app             # String: OAuth client ID
-    ClientSecret: xxxxx               # String: OAuth client secret
-    ClientRedirectURL: http://zzzzz   # String: Full URL for OAuth callbacks
-    DexIssuer: http://yyyyyy          # String: Dex issuer URL
-
-Database:
-    SqliteFilename: "sqlite.db"       # String: Path to SQLite database file
 
 Logging:
-    Level: "debug"                    # String: "debug", "info", "warn", "error", "fatal", "panic"
-    Type: "text-with-colors"          # String: "json", "text", or "text-with-colors"
-    TimeFormat: "2006-01-02T15:04:05.999Z07:00"  # String: Go time format string
-    Output: "console-and-file:/var/log/app.log"   # String: "console", "file:/path/to/file.log", or "console-and-file:/path/to/file.log"
+    # Level - String: "debug", "info", "warn", "error", "fatal", "panic"
+    Level: "debug"                    
+    # Type - String: "json", "text", or "text-with-colors"
+    Type: "text-with-colors"          
+    # TimeFormat - String: Go time format string
+    TimeFormat: "2006-01-02T15:04:05.999Z07:00"  
+    # Output - String: "console", "file:/path/to/file.log", or "console-and-file:/path/to/file.log"
+    Output: "console-and-file:/var/log/vendingmaxine.log"   
+
 
 # GlobalGroups that have permissions to all the collections in the app.
-# These groups are loaded at every startup from this config file, so they can be changed between app restarts.
+# These groups are loaded at every startup from this config file (not saved to db), 
+# so they can be changed between app restarts.
 GlobalGroups:
-    GlobalAdminGroup: "0000-0000-1111" # String: Group ID for global admin group. Is not saved to db, loaded at startup
-    GlobalReaderGroup: "0000-0000-2222" # String: Group ID for global reader group. Is not saved to db, loaded at startup
+    # GlobalAdminGroup - String: Group ID for global admin group
+    GlobalAdminGroup: "0000-0000-1111" 
+    # GlobalReaderGroup - String: Group ID for global reader group
+    GlobalReaderGroup: "0000-0000-2222"
+
+
+DexConfig:
+    # ClientId - String: OAuth client ID
+    ClientId: my-vending-maxine-clientid             
+
+    # ClientSecret - String: OAuth client secret
+    # Put a placeholder fake-value here, and override it at runtime with env-var CONFIG_DEXCONFIG_CLIENTSECRET 
+    ClientSecret: "placeholder that should be overriden by env-var CONFIG_DEXCONFIG_CLIENTSECRET"
+
+    # ClientRedirectURL - String: Full URL of vendingMaxine /callback, for OAuth callbacks
+    # This should always be http://<my-vendingMaxine-domain:port>/callback
+    # where <my-vendingMaxine-domain:port> is what might change, 
+    # but '/callback' path should not be changed
+    ClientRedirectURL: http://127.0.0.1:8080/callback
+
+    # DexIssuer - String: Full URL of Dex issuer 
+    # This depends on the config of DEX, usually the DEX-config "issuer:" param 
+    # Ex: http://<dex-domain:port>/dex 
+    DexIssuer: http://127.0.0.1:5556/dex    
+
+
+Database:
+    # SqliteFilename - String: Path to SQLite database file
+    SqliteFilename: "sqlite.db"       
+
+

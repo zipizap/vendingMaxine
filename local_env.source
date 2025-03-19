@@ -1,1 +1,1 @@
-export CONFIG_BRANDING_NAME="MyNameOverridenFromEnvVar"
+export CONFIG_DEXCONFIG_CLIENTSECRET='ZXhhbXBsZS1hcHAtc2VjcmV0'
