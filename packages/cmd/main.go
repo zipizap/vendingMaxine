@@ -5,7 +5,6 @@ import (
 	"vendingMaxine/packages/logger"
 	"vendingMaxine/packages/models/dbModels"
 	opshub "vendingMaxine/packages/opsHub"
-	"vendingMaxine/packages/webserver"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -57,18 +56,6 @@ func dbInit() {
 
 func opsHubInit() {
 	opshub.SetGlobalGroups(appConfig.GlobalGroups.GlobalAdminGroup, appConfig.GlobalGroups.GlobalReaderGroup)
-}
-
-func webserverStart() {
-	log.Info().Msg("Starting web server")
-	webserverConfigOauth := &webserver.ConfigOauthClientDex{
-		ClientID:          appConfig.DexConfig.ClientId,
-		ClientSecret:      appConfig.DexConfig.ClientSecret,
-		ClientRedirectURL: appConfig.DexConfig.ClientRedirectURL,
-		ClientScopes:      []string{"openid", "profile", "email", "groups"},
-		DexIssuer:         appConfig.DexConfig.DexIssuer,
-	}
-	webserver.Start(webserverConfigOauth)
 }
 
 func Execute() {
