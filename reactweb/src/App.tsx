@@ -31,7 +31,6 @@ function App() {
 
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/public" element={<Public />} />
           <Route path="/collections" element={<Collections />} />
         </Routes>
       </div>

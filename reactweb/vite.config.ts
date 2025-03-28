@@ -19,19 +19,7 @@ export default defineConfig({
         target: 'http://127.0.0.1:8080', // Go server address
         changeOrigin: true,
       },
-      '/private': {
-        target: 'http://127.0.0.1:8080', // Go server address
-        changeOrigin: true,
-      },
-      '/check_auth': {
-        target: 'http://127.0.0.1:8080', // Go server address
-        changeOrigin: true,
-      },
-      '/date_from_server': {
-        target: 'http://127.0.0.1:8080', // Go server address
-        changeOrigin: true,
-      },
-      '/ws_date': {
+      '/api': {
         target: 'http://127.0.0.1:8080', // Go server address
         changeOrigin: true,
         ws: true,
