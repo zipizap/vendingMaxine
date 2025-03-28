@@ -42,7 +42,10 @@
 
 - Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations  
 
-- T998) / should deliver compiled react-app
+- T99x) / should deliver compiled react-app
+- T99x) react-app:
+  - About and Contact should get info from webserver, which in turn should read it from ?config.yaml? 
+  
 
 - T999) clean existing TOREVIEW, TBD, TODO, WIP
 

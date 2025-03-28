@@ -26,13 +26,6 @@ func indexHandler(c echo.Context) error {
 		<body>
 			<h1>Index</h1>
 			<p>This is a temp placeholder - the iindex webpage will be included in SPA</p>
-			<ul>
-				<li><a href="/public">Public</a></li>
-				<li><a href="/login">Login</a></li>
-				<li><a href="/logout">Logout</a></li>
-				<li><a href="/private">Private</a></li>
-				<li><a href="/date_from_server">Server Date</a></li>
-			</ul>
 			</p><hr></p>
 		</body>
 	</html>`
