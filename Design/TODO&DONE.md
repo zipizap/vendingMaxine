@@ -18,17 +18,21 @@
 
 ## TODO
  
-- T014) web, introduce package webserver, by adding webpages as in package, with DEX. 
-        The same webs from the package, for a quick start
-        
 
-- Tzzz) refactor webserver: webpages from local subdirs, and more of them 
-    /webpages
-      /WebHome
-      /WebCollections
-      /WebCollectionNew
-      /WebCollectionEdit
-      /WebCollectionDashboard   
+- Tzzz) migrate webpages from webserver into spa
+  - spa should use api calls
+  - webserver ideally ends-up serving only /login|logout|callback + /api/*
+  Webpages:
+    - spa
+      - /
+      - 
+    - webserver
+      + /login /logout /callback 
+      + /api/public/check_auth
+      + /api/private/ws
+
+
+- Tzzz) 03_npm_build_and_serve_static.sh: npm_build and copy the reactapp/dist to the webserver/static/reactapp
 
 
 
@@ -37,6 +41,8 @@
   . ? Let GlobalAdmins be able to perform some global-admin-special-operations, like forcing a transition to "ReadyToRetry" or something? 
 
 - Tzzz) add some tests to the model and dbmodel - at least for the most-significant operations  
+
+- T998) / should deliver compiled react-app
 
 - T999) clean existing TOREVIEW, TBD, TODO, WIP
 
@@ -58,6 +64,16 @@
 
 
 ## DONE
+
++ T017) /api/public /api/private/
+  + golang adapt
+  + spa adapt (none at the moment)
+
++ T016) add reactapp as subdir
+
++ T015) web, introduce package webserver, by adding webpages as in package, with DEX. The same webs from the package, for a quick start
+
++ T014) webserver package: refactor so that it handles basic paths for oauth (/login /logout /callback), and facilite other paths/handlers to be added outside of package
 
 + T013) Introduce GlobalAdminGroup, GlobalReaderGroup:
   + Logic:

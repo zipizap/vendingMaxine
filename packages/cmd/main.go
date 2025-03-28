@@ -5,12 +5,15 @@ import (
 	"vendingMaxine/packages/logger"
 	"vendingMaxine/packages/models/dbModels"
 	opshub "vendingMaxine/packages/opsHub"
+	webs "vendingMaxine/packages/webs"
+
+	"vendingMaxine/packages/sharedTypes"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
-var appConfig *appConfigType
+var appConfig *sharedTypes.AppConfigType
 
 func appconfigInit(flagConfigFilename *string) {
 	cfg, err := loadAppConfig(*flagConfigFilename)
@@ -69,7 +72,7 @@ func Execute() {
 			showConfigInLogger()
 			dbInit()
 			opsHubInit()
-			webserverStart()
+			webs.WebserverStart(appConfig)
 		},
 	}
 
