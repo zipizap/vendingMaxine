@@ -75,7 +75,7 @@ func privateHandler(c echo.Context) error {
 
 // checkAuthHandler checks if the user is authenticated by checking the presence of the id_token cookie.
 // If the cookie is present, it validates the token with the OIDC provider.
-// If the token is valid, it returns a JSON response {"authenticated": true}.
+// If the token is valid, it returns a JSON response with {"authenticated": true, "claims": {<claims>}}.
 // If the token is invalid or missing, it returns a JSON response {"authenticated": false}.
 func checkAuthHandler(c echo.Context) error {
 	cookie, err := c.Cookie("id_token")
@@ -106,21 +106,26 @@ type DateMessage struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// dateSocketHandlerApi upgrades the HTTP connection to a websocket and periodically sends the current date/time to the client.
-// dateSocketHandlerApi will never return error - if there is a problem, it will send a json-body
+// wsHandler upgrades the HTTP connection to a websocket
+// wsHandler will never return error - if there is a problem, it will send a json-body
 // error message {"error": "error description"} and close the ws-connection.
-func dateSocketHandlerApi(c echo.Context) error {
-	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
-	if err != nil {
-		// DO NOT RETURN ERROR, as the client is already expecting a websocket
-		// If upgrading the connection fails AFTER the authentication middleware,
-		// it's a server error, not an authentication error.
-		// Send a close message to the client.
-		ws.WriteJSON(map[string]string{"error": "Server error upgrading websocket"})
-		ws.Close()
-		return nil
+func wsHandler(c echo.Context) error {
+	var err error
+	// Upgrade the connection to a websocket
+	var ws *websocket.Conn
+	{
+		ws, err = upgrader.Upgrade(c.Response(), c.Request(), nil)
+		if err != nil {
+			// DO NOT RETURN ERROR, as the client is already expecting a websocket
+			// If upgrading the connection fails AFTER the authentication middleware,
+			// it's a server error, not an authentication error.
+			// Send a close message to the client.
+			ws.WriteJSON(map[string]string{"error": "Server error upgrading websocket"})
+			ws.Close()
+			return nil
+		}
+		defer ws.Close()
 	}
-	defer ws.Close()
 
 	for {
 		time.Sleep(time.Second)
@@ -165,7 +170,7 @@ func WebserverStart(appConfig *sharedTypes.AppConfigType) {
 	// Group routes for private API endpoints (use the OauthIdTokenValidatorApiMiddleware)
 	privateApiGroup := E.Group("/api/private")
 	privateApiGroup.Use(webserver.OauthIdTokenValidatorApiMiddleware)
-	privateApiGroup.GET("/ws", dateSocketHandlerApi)
+	privateApiGroup.GET("/ws", wsHandler)
 
 	log.Info().Msg("Starting web server")
 	webserverConfigOauth := &webserver.ConfigOauthClientDex{

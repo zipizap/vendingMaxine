@@ -18,6 +18,10 @@
 
 ## TODO
  
+ - Tzzz) in golang privateApi endpoints, like wsHandler, use c.Get("idTokenClaims") to read claims from context
+ and to create a CurrentClient struct to use with opsHub methods
+   This way we achieve authenticating the user/groups in each opsHub call, by reusing the claims-from-context
+   And this might close the authentication e2e from the spa, to webserver to dex and Models ;)
 
 - Tzzz) migrate webpages from webserver into spa
   - spa should use api calls
@@ -45,7 +49,7 @@
 - T99x) / should deliver compiled react-app
 - T99x) react-app:
   - About and Contact should get info from webserver, which in turn should read it from ?config.yaml? 
-  
+
 
 - T999) clean existing TOREVIEW, TBD, TODO, WIP
 
@@ -67,6 +71,11 @@
 
 
 ## DONE
+
+ + T018) github-webserver: add `c.Set("idTokenClaims", idTokenClaims), where idTokenClaims is a map[string]interface{}` to both:
+   + OauthIdTokenValidatorApiMiddleware (almost)
+   + OauthIdTokenValidatorMiddleware 
+
 
 + T017) /api/public /api/private/
   + golang adapt

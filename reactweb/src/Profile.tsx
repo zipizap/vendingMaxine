@@ -1,47 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import './App.css';
-
-interface AuthData {
-  authenticated: boolean;
-  claims: {
-    [key: string]: any;
-  };
-}
+import { useAuth } from './context/AuthContext';
 
 const Profile = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [authData, setAuthData] = useState<AuthData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/public/check_auth');
-        const data = await response.json();
-        
-        setIsAuthenticated(data.authenticated);
-        setAuthData(data);
-        
-        if (!data.authenticated) {
-          const currentUrl = encodeURIComponent(window.location.href);
-          window.location.href = `/login?redirect=${currentUrl}`;
-          return;
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Profile: Authentication check failed with error:', error);
-        const currentUrl = encodeURIComponent(window.location.href);
-        window.location.href = `/login?redirect=${currentUrl}`;
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  if (isLoading || isAuthenticated === null) {
-    return <div className="profile-loading">Loading...</div>;
-  }
+  const { authData } = useAuth();
 
   // Format dates for better readability
   const formatDate = (timestamp: number): string => {
@@ -109,7 +71,7 @@ const Profile = () => {
           <div className="profile-item">
             <div className="profile-key">Authentication Status:</div>
             <div className="profile-value authenticated">
-              {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}
+              {authData?.authenticated ? 'Authenticated' : 'Not Authenticated'}
             </div>
           </div>
           
