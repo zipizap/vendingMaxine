@@ -3,6 +3,8 @@ import './App.css'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Collections from './Collections';
 import Home from './Home';
+import Profile from './Profile';
+import About from './About';
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -11,6 +13,7 @@ function App() {
   const [userEmail, setUserEmail] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLElement>(null);
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
@@ -42,6 +45,25 @@ function App() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Close hamburger menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuOpen &&
+        menuRef.current && 
+        !menuRef.current.contains(event.target as Node) &&
+        !(event.target as Element).closest('.menu-icon')
+      ) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     // Check authentication status when the component mounts
@@ -120,19 +142,19 @@ function App() {
           )}
         </div>
 
-        <nav className={`nav-menu ${menuOpen ? 'open' : ''}`}>
+        <nav className={`nav-menu ${menuOpen ? 'open' : ''}`} ref={menuRef}>
           <ul>
             <li><Link to="/">Home</Link></li>
-            <li><a href="/login" target="_self">Login</a></li>
-            <li><a href="/logout" target="_self">Logout</a></li>
             <li><Link to="/collections">Collections</Link></li>
-            <li><a href="#">About</a></li>
+            <li><Link to="/about">About</Link></li>
           </ul>
         </nav>
 
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/collections" element={<Collections />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/about" element={<About />} />
         </Routes>
       </div>
     </Router>

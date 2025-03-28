@@ -28,6 +28,12 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  width: 100%; /* Added to ensure full width usage */
+}
+
+#root {
+  width: 100%; /* Make sure the root element takes full width */
+  max-width: 100%; /* Override the max-width constraint for profile page */
 }
 
 h1 {
