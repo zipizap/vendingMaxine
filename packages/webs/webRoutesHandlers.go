@@ -82,78 +82,24 @@ func checkAuthHandler(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusOK, map[string]bool{"authenticated": false})
 	}
-	_, err = webserver.OidcVerifier.Verify(context.Background(), cookie.Value)
+	// Extract claims from the ID token
+	idToken, err := webserver.OidcVerifier.Verify(context.Background(), cookie.Value)
 	if err != nil {
 		return c.JSON(http.StatusOK, map[string]bool{"authenticated": false})
 	}
-	return c.JSON(http.StatusOK, map[string]bool{"authenticated": true})
-}
 
-// dateFromServerHandler serves an HTML page with JavaScript that connects to the /ws_date websocket.
-func dateFromServerHandler(c echo.Context) error {
-	return c.HTML(http.StatusOK, `<html>
-		<body>
-			<ul>
-				<li><a href="/public">Public</a></li>
-				<li><a href="/login">Login</a></li>
-				<li><a href="/logout">Logout</a></li>
-				<li><a href="/private">Private</a></li>
-				<li><a href="/date_from_server">Server Date</a></li>
-			</ul>
-			<h1>Server Date</h1>
-			<div id="serverDate">Connecting...</div>
-			<script>
-				fetch("/api/public/check_auth")
-				.then(response => response.json())
-				.then(data => {
-					if(data.authenticated){
-						const ws = new WebSocket("ws://" + location.host + "/api/private/ws_date");
-						ws.onmessage = (e) => {
-							const data = JSON.parse(e.data);
-							document.getElementById("serverDate").innerText += "\n" + data.timestamp;
-						};
-						ws.onerror = (e) => {
-							console.error('WebSocket error:', e);
-							alert('WebSocket error occurred. Please check the console for details.');
-						};
-						ws.onclose = (e) => {
-							if (e.code === 404) {
-								try {
-									const errorData = JSON.parse(e.reason);
-									`+"alert(`HTTP ${e.code}: ${JSON.stringify(errorData)}`);"+`
-								} catch (jsonError) {
-									`+"alert(`HTTP ${e.code}: ${e.reason}`);"+`
-								}
-								return;
-							} else if (e.code === 1006) {
-								try {
-									const errorData = JSON.parse(e.reason);
-									if (errorData.error === "Login required") {
-										alert("Authentication required. Please log in.");
-										window.location.href = "/login";
-										return;
-									}
-								} catch (jsonError) {
-									console.error("Failed to parse close reason as JSON:", e.reason, jsonError);
-									alert("WebSocket connection closed unexpectedly. Please check the console for details.");
-								}
-							} else {
-								console.warn('WebSocket connection closed:', e);
-								alert('WebSocket connection closed. Please check the console for details.');
-							}
-						};
-					} else {
-						// Redirect to login page with current url as parameter
-						window.location.href = "/login?redirect=" + encodeURIComponent(window.location.pathname);
-					}
-				})
-				.catch(err => {
-					console.error("Error checking authentication:", err);
-					alert("Error checking authentication.");
-				});
-			</script>
-		</body>
-	</html>`)
+	// Parse the claims
+	var claims map[string]interface{}
+	if err := idToken.Claims(&claims); err != nil {
+		// If claims parsing fails, return authenticated without claims
+		return c.JSON(http.StatusOK, map[string]bool{"authenticated": true})
+	}
+
+	// Return authentication status with claims
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"authenticated": true,
+		"claims":        claims,
+	})
 }
 
 type DateMessage struct {
