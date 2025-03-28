@@ -128,9 +128,8 @@ function App() {
               {userMenuOpen && (
                 <div className="user-dropdown-menu">
                   <ul>
-                    <li onClick={handleLogout}>Logout</li>
                     <li><Link to="/profile">My Profile</Link></li>
-                    <li><Link to="/settings">Settings</Link></li>
+                    <li onClick={handleLogout}>Logout</li>
                   </ul>
                 </div>
               )}
