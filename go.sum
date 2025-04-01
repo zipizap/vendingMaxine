@@ -90,6 +90,8 @@ github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250326232925-77b443c857
 github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250326232925-77b443c857b8/go.mod h1:RXumVztVj35u/Q9VWN2xubctDXYRaczDKLgBOhz2Sd0=
 github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250326233047-189ef4f02734 h1:DQuO7FQAg1wCW30Gmrd85YgokE0ctZ/YZ5kfDmWawvY=
 github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250326233047-189ef4f02734/go.mod h1:RXumVztVj35u/Q9VWN2xubctDXYRaczDKLgBOhz2Sd0=
+github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250328155048-e579a9515ccb h1:yAuaj9Jqs6tI/GG7maIEePx7tkE6Np1MIK00GIirDhE=
+github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250328155048-e579a9515ccb/go.mod h1:RXumVztVj35u/Q9VWN2xubctDXYRaczDKLgBOhz2Sd0=
 go.uber.org/atomic v1.11.0 h1:ZvwS0R+56ePWxUNi+Atn9dWONBPp/AUETXlHW0DxSjE=
 go.uber.org/atomic v1.11.0/go.mod h1:LUxbIzbOniOlMKjJjyPfpl4v+PKK2cNJn91OQbhoJI0=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=

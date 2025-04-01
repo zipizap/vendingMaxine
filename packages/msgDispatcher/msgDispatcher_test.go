@@ -29,7 +29,7 @@ func NewGetInfoRequest(query string) *GetInfoRequest {
 }
 
 // Process handles the test request
-func (r *GetInfoRequest) Process() MessageResponse {
+func (r *GetInfoRequest) Process() BaseResponser {
 	return &GetInfoResponse{
 		BaseMessage: BaseMessage{
 			Kind:       "GetInfoResponse",
@@ -64,7 +64,7 @@ func NewStatusRequest(system string) *StatusRequest {
 }
 
 // Process handles the test request
-func (r *StatusRequest) Process() MessageResponse {
+func (r *StatusRequest) Process() BaseResponser {
 	return &StatusResponse{
 		BaseMessage: BaseMessage{
 			Kind:       "StatusResponse",

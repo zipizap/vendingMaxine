@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"time"
+	opshub "vendingMaxine/packages/opsHub"
 	"vendingMaxine/packages/sharedTypes"
 
 	"github.com/zipizap/goEchoWebOauth2Dex/webserver"
@@ -31,47 +32,6 @@ func indexHandler(c echo.Context) error {
 	</html>`
 	return c.HTML(http.StatusOK, html)
 }
-
-/*
-// privateHandler serves /private the private page, which is only accessible
-// if the user is already authenticated (contains valid ID token as cookie).
-func privateHandler(c echo.Context) error {
-
-	// The cookie-and-claims code bellow is not necessary, as the authMiddleware already took care of verifying the ID token before reaching this handler.
-	// This code is left here as an example of how to extract claims from the ID token.
-	cookie, err := c.Cookie("id_token")
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "Missing ID token")
-	}
-
-	idToken, err := webserver.OidcVerifier.Verify(context.Background(), cookie.Value)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "Invalid ID token")
-	}
-
-	var claims map[string]interface{}
-	if err := idToken.Claims(&claims); err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to parse claims: %v", err))
-	}
-
-	return c.HTML(http.StatusOK, fmt.Sprintf(`<html>
-		<body>
-			<h1>Private</h1>
-			<p>Private access granted</p>
-			<p>ID_Token: %s</p>
-			<p>Claims: %v</p>
-			<ul>
-				<li><a href="/public">Public</a></li>
-				<li><a href="/login">Login</a></li>
-				<li><a href="/logout">Logout</a></li>
-				<li><a href="/private">Private</a></li>
-				<li><a href="/date_from_server">Server Date</a></li>
-			</ul>
-			</p><hr></p>
-		</body>
-	</html>`, cookie.Value, claims))
-}
-*/
 
 // checkAuthHandler checks if the user is authenticated by checking the presence of the id_token cookie.
 // If the cookie is present, it validates the token with the OIDC provider.
@@ -102,10 +62,6 @@ func checkAuthHandler(c echo.Context) error {
 	})
 }
 
-type DateMessage struct {
-	Timestamp string `json:"timestamp"`
-}
-
 // wsHandler upgrades the HTTP connection to a websocket
 // wsHandler will never return error - if there is a problem, it will send a json-body
 // error message {"error": "error description"} and close the ws-connection.
@@ -127,11 +83,37 @@ func wsHandler(c echo.Context) error {
 		defer ws.Close()
 	}
 
-	for {
-		time.Sleep(time.Second)
-		msg := DateMessage{
-			Timestamp: time.Now().String(),
+	// Get idTokenClaims from the context
+	idTokenClaims := c.Get("idTokenClaims").(map[string]interface{})
+	// Set currentClient from idToken claims
+	var currentClient opshub.CurrentClient
+	{
+		claimToUseForUser := "email"
+		user, ok := idTokenClaims[claimToUseForUser].(string)
+		if !ok {
+			// If the claimToUseForUser is not found in the claims, send an error message and close the ws-connection
+			ws.WriteJSON(map[string]string{"error": fmt.Sprintf("'%s' claim not found in IdToken", claimToUseForUser)})
+			ws.Close()
+			return nil
 		}
+
+		claimToUseForGroups := "groups"
+		groups, ok := idTokenClaims[claimToUseForGroups].([]string)
+		if !ok {
+			// If the claimToUseForUser is not found in the claims, send an error message and close the ws-connection
+			ws.WriteJSON(map[string]string{"error": fmt.Sprintf("'%s' claim not found in IdToken", claimToUseForGroups)})
+			ws.Close()
+			return nil
+		}
+		currentClient = opshub.CurrentClient{
+			User:   user,
+			Groups: groups,
+		}
+	}
+
+	// Infinite loop of ws messages: listen for zzzRequest, reply with zzzResponse
+	for {
+		CONTINUE HERE
 		if err := ws.WriteJSON(msg); err != nil {
 			// DO NOT RETURN ERROR, as the client is already expecting a websocket
 			// If writing the date fails AFTER the websocket was established,

@@ -8,7 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
-	github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250326233047-189ef4f02734
+	github.com/zipizap/goEchoWebOauth2Dex/webserver v0.0.0-20250328155048-e579a9515ccb
 	golang.org/x/oauth2 v0.28.0
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12

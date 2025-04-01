@@ -36,6 +36,8 @@
       + /api/private/ws
 
 
+- Tzzz) connect msgDispatcher with websocket ;)
+
 - Tzzz) 03_npm_build_and_serve_static.sh: npm_build and copy the reactapp/dist to the webserver/static/reactapp
 
 
@@ -56,6 +58,8 @@
 
 
 ### TODO-future-versions?
+
+- user identification and claims: dont use claim "email" as it might change, and instead use another claim that uniquely identifies a user 
 
 - fix deadlock-by-silent-runner-death: if a runner gets unexpectedly killed (or server gets killed), the collection will keep the Ongoing state forever. There should be a mechanism (api call or whatever) to change such states in the db to Failed-or-appropriate, so that it can be restarted by the user
 
